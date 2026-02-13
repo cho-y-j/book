@@ -120,23 +120,55 @@ class MyBookshelfScreen extends ConsumerWidget {
                         ])),
                         // 메뉴
                         PopupMenuButton(itemBuilder: (_) => [
-                          const PopupMenuItem(value: 'edit', child: Text('수정')),
-                          const PopupMenuItem(value: 'delete', child: Text('삭제')),
+                          const PopupMenuItem(value: 'edit', child: Row(children: [
+                            Icon(Icons.edit, size: 18), SizedBox(width: 8), Text('수정'),
+                          ])),
+                          PopupMenuItem(value: 'hide', child: Row(children: [
+                            Icon(book.status == 'hidden' ? Icons.visibility : Icons.visibility_off, size: 18),
+                            const SizedBox(width: 8),
+                            Text(book.status == 'hidden' ? '게시하기' : '가리기'),
+                          ])),
+                          const PopupMenuItem(value: 'bump', child: Row(children: [
+                            Icon(Icons.arrow_upward, size: 18), SizedBox(width: 8), Text('끌어올리기'),
+                          ])),
+                          const PopupMenuItem(value: 'delete', child: Row(children: [
+                            Icon(Icons.delete_outline, size: 18, color: AppColors.error),
+                            SizedBox(width: 8),
+                            Text('삭제', style: TextStyle(color: AppColors.error)),
+                          ])),
                         ], onSelected: (v) {
-                          if (v == 'edit') context.push(AppRoutes.bookEditPath(book.id));
-                          if (v == 'delete') {
+                          final repo = ref.read(bookRepositoryProvider);
+                          if (v == 'edit') {
+                            context.push(AppRoutes.bookEditPath(book.id));
+                          } else if (v == 'hide') {
+                            final willHide = book.status != 'hidden';
+                            repo.toggleHideBook(book.id, willHide);
+                            ref.invalidate(userBooksProvider(uid));
+                            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                              content: Text(willHide ? '게시물을 가렸습니다' : '게시물을 다시 게시합니다'),
+                            ));
+                          } else if (v == 'bump') {
+                            repo.bumpBook(book.id);
+                            ref.invalidate(userBooksProvider(uid));
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('끌어올리기 완료! 목록 상단에 노출됩니다'), backgroundColor: AppColors.success),
+                            );
+                          } else if (v == 'delete') {
                             showDialog(
                               context: context,
                               builder: (ctx) => AlertDialog(
                                 title: const Text('책 삭제'),
-                                content: Text('"${book.title}"을(를) 삭제하시겠습니까?'),
+                                content: Text('"${book.title}"을(를) 삭제하시겠습니까?\n삭제 후 복구할 수 없습니다.'),
                                 actions: [
                                   TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('취소')),
                                   TextButton(
                                     onPressed: () {
                                       Navigator.pop(ctx);
-                                      ref.read(bookRepositoryProvider).deleteBook(book.id);
+                                      repo.deleteBook(book.id);
                                       ref.invalidate(userBooksProvider(uid));
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        const SnackBar(content: Text('삭제되었습니다')),
+                                      );
                                     },
                                     child: Text('삭제', style: TextStyle(color: AppColors.error)),
                                   ),

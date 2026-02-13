@@ -87,6 +87,21 @@ class BookRepository {
     });
   }
 
+  /// 끌어올리기 (updatedAt 갱신 → 최신으로 올라감)
+  Future<void> bumpBook(String bookId) async {
+    await _booksRef.doc(bookId).update({
+      'updatedAt': Timestamp.now(),
+    });
+  }
+
+  /// 가리기/숨기기 토글
+  Future<void> toggleHideBook(String bookId, bool hide) async {
+    await _booksRef.doc(bookId).update({
+      'status': hide ? 'hidden' : 'available',
+      'updatedAt': Timestamp.now(),
+    });
+  }
+
   Stream<List<BookModel>> watchUserBooks(String uid) {
     return _booksRef
         .where('ownerUid', isEqualTo: uid)
