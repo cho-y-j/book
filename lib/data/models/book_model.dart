@@ -1,0 +1,131 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+
+class BookModel {
+  final String id;
+  final String ownerUid;
+  final String bookInfoId;
+  final String title;
+  final String author;
+  final String? coverImageUrl;
+  final List<String> conditionPhotos;
+  final String condition; // 'best' | 'good' | 'fair' | 'poor'
+  final String? conditionNote;
+  final String status; // 'available' | 'reserved' | 'exchanged' | 'hidden'
+  final String exchangeType; // 'local_only' | 'delivery_only' | 'both'
+  final String location;
+  final GeoPoint geoPoint;
+  final String genre;
+  final List<String> tags;
+  final int viewCount;
+  final int wishCount;
+  final int requestCount;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+
+  const BookModel({
+    required this.id,
+    required this.ownerUid,
+    required this.bookInfoId,
+    required this.title,
+    required this.author,
+    this.coverImageUrl,
+    this.conditionPhotos = const [],
+    required this.condition,
+    this.conditionNote,
+    this.status = 'available',
+    this.exchangeType = 'both',
+    required this.location,
+    required this.geoPoint,
+    required this.genre,
+    this.tags = const [],
+    this.viewCount = 0,
+    this.wishCount = 0,
+    this.requestCount = 0,
+    required this.createdAt,
+    required this.updatedAt,
+  });
+
+  factory BookModel.fromFirestore(DocumentSnapshot doc) {
+    final data = doc.data() as Map<String, dynamic>;
+    return BookModel(
+      id: doc.id,
+      ownerUid: data['ownerUid'] ?? '',
+      bookInfoId: data['bookInfoId'] ?? '',
+      title: data['title'] ?? '',
+      author: data['author'] ?? '',
+      coverImageUrl: data['coverImageUrl'],
+      conditionPhotos: List<String>.from(data['conditionPhotos'] ?? []),
+      condition: data['condition'] ?? 'good',
+      conditionNote: data['conditionNote'],
+      status: data['status'] ?? 'available',
+      exchangeType: data['exchangeType'] ?? 'both',
+      location: data['location'] ?? '',
+      geoPoint: data['geoPoint'] ?? const GeoPoint(0, 0),
+      genre: data['genre'] ?? '기타',
+      tags: List<String>.from(data['tags'] ?? []),
+      viewCount: data['viewCount'] ?? 0,
+      wishCount: data['wishCount'] ?? 0,
+      requestCount: data['requestCount'] ?? 0,
+      createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+      updatedAt: (data['updatedAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+    );
+  }
+
+  Map<String, dynamic> toFirestore() {
+    return {
+      'ownerUid': ownerUid,
+      'bookInfoId': bookInfoId,
+      'title': title,
+      'author': author,
+      'coverImageUrl': coverImageUrl,
+      'conditionPhotos': conditionPhotos,
+      'condition': condition,
+      'conditionNote': conditionNote,
+      'status': status,
+      'exchangeType': exchangeType,
+      'location': location,
+      'geoPoint': geoPoint,
+      'genre': genre,
+      'tags': tags,
+      'viewCount': viewCount,
+      'wishCount': wishCount,
+      'requestCount': requestCount,
+      'createdAt': Timestamp.fromDate(createdAt),
+      'updatedAt': Timestamp.fromDate(updatedAt),
+    };
+  }
+
+  BookModel copyWith({
+    String? condition,
+    String? conditionNote,
+    List<String>? conditionPhotos,
+    String? status,
+    String? exchangeType,
+    String? location,
+    GeoPoint? geoPoint,
+    List<String>? tags,
+  }) {
+    return BookModel(
+      id: id,
+      ownerUid: ownerUid,
+      bookInfoId: bookInfoId,
+      title: title,
+      author: author,
+      coverImageUrl: coverImageUrl,
+      conditionPhotos: conditionPhotos ?? this.conditionPhotos,
+      condition: condition ?? this.condition,
+      conditionNote: conditionNote ?? this.conditionNote,
+      status: status ?? this.status,
+      exchangeType: exchangeType ?? this.exchangeType,
+      location: location ?? this.location,
+      geoPoint: geoPoint ?? this.geoPoint,
+      genre: genre,
+      tags: tags ?? this.tags,
+      viewCount: viewCount,
+      wishCount: wishCount,
+      requestCount: requestCount,
+      createdAt: createdAt,
+      updatedAt: DateTime.now(),
+    );
+  }
+}

@@ -1,0 +1,242 @@
+import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+// Auth
+import '../features/auth/screens/splash_screen.dart';
+import '../features/auth/screens/onboarding_screen.dart';
+import '../features/auth/screens/login_screen.dart';
+import '../features/auth/screens/signup_screen.dart';
+// Main tabs
+import '../features/home/screens/home_screen.dart';
+import '../features/search/screens/search_screen.dart';
+import '../features/book_register/screens/book_search_register_screen.dart';
+import '../features/chat/screens/chat_list_screen.dart';
+import '../features/profile/screens/my_profile_screen.dart';
+// Book
+import '../features/book_detail/screens/book_detail_screen.dart';
+import '../features/book_register/screens/barcode_scan_screen.dart';
+import '../features/book_register/screens/manual_register_screen.dart';
+import '../features/book_register/screens/book_condition_screen.dart';
+// My Bookshelf
+import '../features/my_bookshelf/screens/my_bookshelf_screen.dart';
+import '../features/my_bookshelf/screens/book_edit_screen.dart';
+// Exchange
+import '../features/exchange/screens/exchange_history_screen.dart';
+import '../features/exchange/screens/exchange_request_screen.dart';
+import '../features/exchange/screens/incoming_requests_screen.dart';
+import '../features/exchange/screens/requester_bookshelf_screen.dart';
+import '../features/exchange/screens/match_confirm_screen.dart';
+import '../features/exchange/screens/exchange_method_screen.dart';
+// Chat
+import '../features/chat/screens/chat_room_screen.dart';
+// Profile
+import '../features/profile/screens/user_profile_screen.dart';
+import '../features/profile/screens/edit_profile_screen.dart';
+import '../features/profile/screens/settings_screen.dart';
+// Notification
+import '../features/notification/screens/notification_list_screen.dart';
+import '../features/notification/screens/notification_settings_screen.dart';
+// Review
+import '../features/review/screens/write_review_screen.dart';
+// Wishlist
+import '../features/wishlist/screens/wishlist_screen.dart';
+// Book Club
+import '../features/book_club/screens/book_club_list_screen.dart';
+import '../features/book_club/screens/book_club_detail_screen.dart';
+import '../features/book_club/screens/create_book_club_screen.dart';
+// Ranking & Stats
+import '../features/ranking/screens/ranking_screen.dart';
+import '../features/stats/screens/my_stats_screen.dart';
+// Relay Exchange
+import '../features/relay_exchange/screens/relay_suggest_screen.dart';
+import '../features/relay_exchange/screens/relay_route_screen.dart';
+
+class AppRoutes {
+  AppRoutes._();
+
+  // Auth
+  static const splash = '/';
+  static const onboarding = '/onboarding';
+  static const login = '/login';
+  static const signup = '/signup';
+
+  // Main tabs
+  static const home = '/home';
+  static const search = '/search';
+  static const bookRegister = '/book-register';
+  static const chatList = '/chat';
+  static const myProfile = '/my-profile';
+
+  // Book
+  static const bookDetail = '/book/:bookId';
+  static const barcodeScan = '/barcode-scan';
+  static const manualRegister = '/manual-register';
+  static const bookCondition = '/book-condition';
+
+  // My Bookshelf
+  static const myBookshelf = '/my-bookshelf';
+  static const bookEdit = '/book-edit/:bookId';
+
+  // Exchange
+  static const exchangeHistory = '/exchange-history';
+  static const exchangeRequest = '/exchange-request/:bookId';
+  static const incomingRequests = '/incoming-requests';
+  static const requesterBookshelf = '/requester-bookshelf/:uid';
+  static const matchConfirm = '/match-confirm/:matchId';
+  static const exchangeMethod = '/exchange-method/:matchId';
+
+  // Chat
+  static const chatRoom = '/chat-room/:chatRoomId';
+
+  // Profile
+  static const userProfile = '/user/:userId';
+  static const editProfile = '/edit-profile';
+  static const settings = '/settings';
+
+  // Notification
+  static const notifications = '/notifications';
+  static const notificationSettings = '/notification-settings';
+
+  // Review
+  static const writeReview = '/write-review/:matchId';
+
+  // Wishlist
+  static const wishlist = '/wishlist';
+
+  // Book Club
+  static const bookClubList = '/book-clubs';
+  static const bookClubDetail = '/book-club/:clubId';
+  static const createBookClub = '/create-book-club';
+
+  // Ranking & Stats
+  static const ranking = '/ranking';
+  static const myStats = '/my-stats';
+
+  // Relay Exchange
+  static const relaySuggest = '/relay-suggest';
+  static const relayRoute = '/relay-route';
+
+  /// Helper to build paths with parameters
+  static String bookDetailPath(String bookId) => '/book/$bookId';
+  static String bookEditPath(String bookId) => '/book-edit/$bookId';
+  static String exchangeRequestPath(String bookId) => '/exchange-request/$bookId';
+  static String requesterBookshelfPath(String uid) => '/requester-bookshelf/$uid';
+  static String matchConfirmPath(String matchId) => '/match-confirm/$matchId';
+  static String exchangeMethodPath(String matchId) => '/exchange-method/$matchId';
+  static String chatRoomPath(String chatRoomId) => '/chat-room/$chatRoomId';
+  static String userProfilePath(String userId) => '/user/$userId';
+  static String writeReviewPath(String matchId) => '/write-review/$matchId';
+  static String bookClubDetailPath(String clubId) => '/book-club/$clubId';
+}
+
+final appRouter = GoRouter(
+  initialLocation: AppRoutes.splash,
+  routes: [
+    // === Auth ===
+    GoRoute(path: AppRoutes.splash, builder: (_, __) => const SplashScreen()),
+    GoRoute(path: AppRoutes.onboarding, builder: (_, __) => const OnboardingScreen()),
+    GoRoute(path: AppRoutes.login, builder: (_, __) => const LoginScreen()),
+    GoRoute(path: AppRoutes.signup, builder: (_, __) => const SignupScreen()),
+
+    // === Main Shell (Bottom Navigation) ===
+    ShellRoute(
+      builder: (context, state, child) => MainShell(child: child),
+      routes: [
+        GoRoute(path: AppRoutes.home, builder: (_, __) => const HomeScreen()),
+        GoRoute(path: AppRoutes.search, builder: (_, __) => const SearchScreen()),
+        GoRoute(path: AppRoutes.bookRegister, builder: (_, __) => const BookSearchRegisterScreen()),
+        GoRoute(path: AppRoutes.chatList, builder: (_, __) => const ChatListScreen()),
+        GoRoute(path: AppRoutes.myProfile, builder: (_, __) => const MyProfileScreen()),
+      ],
+    ),
+
+    // === Book ===
+    GoRoute(path: AppRoutes.bookDetail, builder: (_, state) => BookDetailScreen(bookId: state.pathParameters['bookId']!)),
+    GoRoute(path: AppRoutes.barcodeScan, builder: (_, __) => const BarcodeScanScreen()),
+    GoRoute(path: AppRoutes.manualRegister, builder: (_, __) => const ManualRegisterScreen()),
+    GoRoute(path: AppRoutes.bookCondition, builder: (_, __) => const BookConditionScreen()),
+
+    // === My Bookshelf ===
+    GoRoute(path: AppRoutes.myBookshelf, builder: (_, __) => const MyBookshelfScreen()),
+    GoRoute(path: AppRoutes.bookEdit, builder: (_, state) => BookEditScreen(bookId: state.pathParameters['bookId']!)),
+
+    // === Exchange ===
+    GoRoute(path: AppRoutes.exchangeHistory, builder: (_, __) => const ExchangeHistoryScreen()),
+    GoRoute(path: AppRoutes.exchangeRequest, builder: (_, state) => ExchangeRequestScreen(targetBookId: state.pathParameters['bookId']!)),
+    GoRoute(path: AppRoutes.incomingRequests, builder: (_, __) => const IncomingRequestsScreen()),
+    GoRoute(path: AppRoutes.requesterBookshelf, builder: (_, state) => RequesterBookshelfScreen(requesterUid: state.pathParameters['uid']!)),
+    GoRoute(path: AppRoutes.matchConfirm, builder: (_, state) => MatchConfirmScreen(matchId: state.pathParameters['matchId']!)),
+    GoRoute(path: AppRoutes.exchangeMethod, builder: (_, state) => ExchangeMethodScreen(matchId: state.pathParameters['matchId']!)),
+
+    // === Chat ===
+    GoRoute(path: AppRoutes.chatRoom, builder: (_, state) => ChatRoomScreen(chatRoomId: state.pathParameters['chatRoomId']!)),
+
+    // === Profile ===
+    GoRoute(path: AppRoutes.userProfile, builder: (_, state) => UserProfileScreen(userId: state.pathParameters['userId']!)),
+    GoRoute(path: AppRoutes.editProfile, builder: (_, __) => const EditProfileScreen()),
+    GoRoute(path: AppRoutes.settings, builder: (_, __) => const SettingsScreen()),
+
+    // === Notification ===
+    GoRoute(path: AppRoutes.notifications, builder: (_, __) => const NotificationListScreen()),
+    GoRoute(path: AppRoutes.notificationSettings, builder: (_, __) => const NotificationSettingsScreen()),
+
+    // === Review ===
+    GoRoute(path: AppRoutes.writeReview, builder: (_, state) => WriteReviewScreen(matchId: state.pathParameters['matchId']!)),
+
+    // === Wishlist ===
+    GoRoute(path: AppRoutes.wishlist, builder: (_, __) => const WishlistScreen()),
+
+    // === Book Club ===
+    GoRoute(path: AppRoutes.bookClubList, builder: (_, __) => const BookClubListScreen()),
+    GoRoute(path: AppRoutes.bookClubDetail, builder: (_, state) => BookClubDetailScreen(clubId: state.pathParameters['clubId']!)),
+    GoRoute(path: AppRoutes.createBookClub, builder: (_, __) => const CreateBookClubScreen()),
+
+    // === Ranking & Stats ===
+    GoRoute(path: AppRoutes.ranking, builder: (_, __) => const RankingScreen()),
+    GoRoute(path: AppRoutes.myStats, builder: (_, __) => const MyStatsScreen()),
+
+    // === Relay Exchange ===
+    GoRoute(path: AppRoutes.relaySuggest, builder: (_, __) => const RelaySuggestScreen()),
+    GoRoute(path: AppRoutes.relayRoute, builder: (_, __) => const RelayRouteScreen()),
+  ],
+);
+
+class MainShell extends StatelessWidget {
+  final Widget child;
+  const MainShell({super.key, required this.child});
+
+  int _currentIndex(BuildContext context) {
+    final location = GoRouterState.of(context).uri.toString();
+    if (location.startsWith('/home')) return 0;
+    if (location.startsWith('/search')) return 1;
+    if (location.startsWith('/book-register')) return 2;
+    if (location.startsWith('/chat')) return 3;
+    if (location.startsWith('/my-profile')) return 4;
+    return 0;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: child,
+      bottomNavigationBar: BottomNavigationBar(
+        currentIndex: _currentIndex(context),
+        onTap: (index) {
+          switch (index) {
+            case 0: context.go(AppRoutes.home);
+            case 1: context.go(AppRoutes.search);
+            case 2: context.go(AppRoutes.bookRegister);
+            case 3: context.go(AppRoutes.chatList);
+            case 4: context.go(AppRoutes.myProfile);
+          }
+        },
+        items: const [
+          BottomNavigationBarItem(icon: Icon(Icons.home_outlined), activeIcon: Icon(Icons.home), label: '홈'),
+          BottomNavigationBarItem(icon: Icon(Icons.search_outlined), activeIcon: Icon(Icons.search), label: '검색'),
+          BottomNavigationBarItem(icon: Icon(Icons.add_circle_outline), activeIcon: Icon(Icons.add_circle), label: '등록'),
+          BottomNavigationBarItem(icon: Icon(Icons.chat_bubble_outline), activeIcon: Icon(Icons.chat_bubble), label: '채팅'),
+          BottomNavigationBarItem(icon: Icon(Icons.person_outline), activeIcon: Icon(Icons.person), label: '마이'),
+        ],
+      ),
+    );
+  }
+}
