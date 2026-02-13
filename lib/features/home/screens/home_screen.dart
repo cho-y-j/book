@@ -7,6 +7,7 @@ import '../../../app/theme/app_typography.dart';
 import '../../../app/theme/app_dimensions.dart';
 import '../../../core/constants/enums.dart';
 import '../../../providers/book_providers.dart';
+import '../../../providers/notification_providers.dart';
 import '../widgets/book_feed_card.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
@@ -27,7 +28,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       appBar: AppBar(
         title: const Text('책다리'),
         actions: [
-          IconButton(icon: const Icon(Icons.notifications_outlined), onPressed: () => context.push(AppRoutes.notifications)),
+          _NotificationBadge(onTap: () => context.push(AppRoutes.notifications)),
         ],
       ),
       body: Column(children: [
@@ -90,6 +91,25 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           },
         )),
       ]),
+    );
+  }
+}
+
+class _NotificationBadge extends ConsumerWidget {
+  final VoidCallback onTap;
+  const _NotificationBadge({required this.onTap});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final countAsync = ref.watch(unreadNotificationCountProvider);
+    final count = countAsync.valueOrNull ?? 0;
+    return IconButton(
+      icon: Badge(
+        isLabelVisible: count > 0,
+        label: Text('$count', style: const TextStyle(fontSize: 10)),
+        child: const Icon(Icons.notifications_outlined),
+      ),
+      onPressed: onTap,
     );
   }
 }

@@ -5,6 +5,8 @@ class WishlistModel {
   final String userUid;
   final String bookInfoId;
   final String title;
+  final String author;
+  final String? coverImageUrl;
   final DateTime createdAt;
   final bool isNotified;
 
@@ -13,6 +15,8 @@ class WishlistModel {
     required this.userUid,
     required this.bookInfoId,
     required this.title,
+    this.author = '',
+    this.coverImageUrl,
     required this.createdAt,
     this.isNotified = false,
   });
@@ -24,6 +28,8 @@ class WishlistModel {
       userUid: data['userUid'] ?? '',
       bookInfoId: data['bookInfoId'] ?? '',
       title: data['title'] ?? '',
+      author: data['author'] ?? '',
+      coverImageUrl: data['coverImageUrl'],
       createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
       isNotified: data['isNotified'] ?? false,
     );
@@ -34,6 +40,8 @@ class WishlistModel {
       'userUid': userUid,
       'bookInfoId': bookInfoId,
       'title': title,
+      'author': author,
+      'coverImageUrl': coverImageUrl,
       'createdAt': Timestamp.fromDate(createdAt),
       'isNotified': isNotified,
     };
