@@ -15,6 +15,7 @@ import '../features/profile/screens/my_profile_screen.dart';
 import '../features/book_detail/screens/book_detail_screen.dart';
 import '../features/book_register/screens/barcode_scan_screen.dart';
 import '../features/book_register/screens/manual_register_screen.dart';
+import '../features/book_register/screens/book_title_search_screen.dart';
 import '../features/book_register/screens/book_condition_screen.dart';
 // My Bookshelf
 import '../features/my_bookshelf/screens/my_bookshelf_screen.dart';
@@ -69,6 +70,7 @@ class AppRoutes {
   // Book
   static const bookDetail = '/book/:bookId';
   static const barcodeScan = '/barcode-scan';
+  static const bookTitleSearch = '/book-title-search';
   static const manualRegister = '/manual-register';
   static const bookCondition = '/book-condition';
 
@@ -152,6 +154,7 @@ final appRouter = GoRouter(
     // === Book ===
     GoRoute(path: AppRoutes.bookDetail, builder: (_, state) => BookDetailScreen(bookId: state.pathParameters['bookId']!)),
     GoRoute(path: AppRoutes.barcodeScan, builder: (_, __) => const BarcodeScanScreen()),
+    GoRoute(path: AppRoutes.bookTitleSearch, builder: (_, __) => const BookTitleSearchScreen()),
     GoRoute(path: AppRoutes.manualRegister, builder: (_, __) => const ManualRegisterScreen()),
     GoRoute(path: AppRoutes.bookCondition, builder: (_, __) => const BookConditionScreen()),
 

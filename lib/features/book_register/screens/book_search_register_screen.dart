@@ -19,7 +19,7 @@ class BookSearchRegisterScreen extends ConsumerWidget {
           const SizedBox(height: 32),
           _RegisterOptionCard(icon: Icons.qr_code_scanner, title: '바코드 스캔', description: 'ISBN 바코드를 스캔하여\n빠르게 등록', onTap: () => context.push(AppRoutes.barcodeScan)),
           const SizedBox(height: 16),
-          _RegisterOptionCard(icon: Icons.search, title: '책 제목 검색', description: '제목이나 저자로\n검색하여 등록', onTap: () => context.push(AppRoutes.manualRegister)),
+          _RegisterOptionCard(icon: Icons.search, title: '책 제목 검색', description: '제목이나 저자로\n검색하여 등록', onTap: () => context.push(AppRoutes.bookTitleSearch)),
           const SizedBox(height: 16),
           _RegisterOptionCard(icon: Icons.edit_note, title: '직접 등록', description: 'DB에 없는 책을\n직접 정보 입력', onTap: () => context.push(AppRoutes.manualRegister)),
         ]),

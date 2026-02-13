@@ -1,14 +1,13 @@
 {
   "project_info": {
-    "project_number": "000000000000",
-    "firebase_url": "https://book-bridge-app.firebaseio.com",
-    "project_id": "book-bridge-app",
-    "storage_bucket": "book-bridge-app.appspot.com"
+    "project_number": "447069044010",
+    "project_id": "book-bridge-2026",
+    "storage_bucket": "book-bridge-2026.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:000000000000:android:0000000000000000",
+        "mobilesdk_app_id": "1:447069044010:android:99ea345f10e2a8bb343253",
         "android_client_info": {
           "package_name": "com.bookbridge.book_bridge"
         }
@@ -16,7 +15,7 @@
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "YOUR_ANDROID_API_KEY_HERE"
+          "current_key": "AIzaSyCeoEdEUm1-YQCl7NAi1S6PcUr1sfG5m24"
         }
       ],
       "services": {
