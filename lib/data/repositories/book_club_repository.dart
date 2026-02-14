@@ -45,4 +45,51 @@ class BookClubRepository {
   Future<void> deleteBookClub(String clubId) async {
     await _clubsRef.doc(clubId).delete();
   }
+
+  Future<void> updateClub(String clubId, Map<String, dynamic> data) async {
+    await _clubsRef.doc(clubId).update(data);
+  }
+
+  // --- 그룹 채팅 (서브컬렉션: book_clubs/{clubId}/messages) ---
+
+  CollectionReference<Map<String, dynamic>> _messagesRef(String clubId) =>
+      _clubsRef.doc(clubId).collection('messages');
+
+  Stream<List<Map<String, dynamic>>> watchMessages(String clubId) {
+    return _messagesRef(clubId)
+        .orderBy('createdAt', descending: false)
+        .limitToLast(100)
+        .snapshots()
+        .map((snap) => snap.docs.map((d) => {'id': d.id, ...d.data()}).toList());
+  }
+
+  Future<void> sendMessage(String clubId, {
+    required String senderUid,
+    required String senderNickname,
+    String? senderProfileImageUrl,
+    required String content,
+  }) async {
+    final now = Timestamp.now();
+    await _messagesRef(clubId).add({
+      'senderUid': senderUid,
+      'senderNickname': senderNickname,
+      'senderProfileImageUrl': senderProfileImageUrl,
+      'content': content,
+      'createdAt': now,
+    });
+    // 부모 문서에 마지막 메시지 갱신
+    await _clubsRef.doc(clubId).update({
+      'lastMessage': content,
+      'lastMessageAt': now,
+    });
+  }
+
+  // --- 실시간 모임 정보 ---
+
+  Stream<BookClubModel?> watchClub(String clubId) {
+    return _clubsRef.doc(clubId).snapshots().map((doc) {
+      if (!doc.exists) return null;
+      return BookClubModel.fromFirestore(doc);
+    });
+  }
 }

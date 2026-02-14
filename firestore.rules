@@ -156,6 +156,17 @@ service cloud.firestore {
         request.auth.uid in resource.data.memberUids
       );
       allow delete: if isOwner(resource.data.creatorUid);
+
+      // Book Club Messages subcollection (그룹 채팅)
+      match /messages/{messageId} {
+        allow read: if isAuthenticated() &&
+          request.auth.uid in get(/databases/$(database)/documents/book_clubs/$(clubId)).data.memberUids;
+        allow create: if isAuthenticated() &&
+          request.auth.uid in get(/databases/$(database)/documents/book_clubs/$(clubId)).data.memberUids &&
+          request.resource.data.senderUid == request.auth.uid;
+        allow update: if false;
+        allow delete: if false;
+      }
     }
 
     // ===== Reports =====
