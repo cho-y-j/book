@@ -4,17 +4,17 @@ import 'package:book_bridge/app/theme/app_colors.dart';
 import 'package:book_bridge/app/theme/app_theme.dart';
 
 void main() {
-  testWidgets('BookBridge theme smoke test', (WidgetTester tester) async {
+  testWidgets('BookGaji theme smoke test', (WidgetTester tester) async {
     await tester.pumpWidget(
       MaterialApp(
         theme: AppTheme.lightTheme,
         home: const Scaffold(
-          body: Center(child: Text('책다리')),
+          body: Center(child: Text('책가지')),
         ),
       ),
     );
 
-    expect(find.text('책다리'), findsOneWidget);
+    expect(find.text('책가지'), findsOneWidget);
   });
 
   test('AppColors are correctly defined', () {

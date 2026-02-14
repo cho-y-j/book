@@ -51,7 +51,7 @@ void main() {
       });
 
       test('올바른 닉네임이면 null', () {
-        expect(Validators.validateNickname('책다리유저'), null);
+        expect(Validators.validateNickname('책가지유저'), null);
         expect(Validators.validateNickname('bookUser_1'), null);
       });
     });

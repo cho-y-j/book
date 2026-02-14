@@ -4,11 +4,12 @@ class MessageModel {
   final String id;
   final String chatRoomId;
   final String senderUid;
-  final String type; // 'text' | 'image' | 'system' | 'location'
+  final String type; // 'text' | 'image' | 'system' | 'location' | 'auto_greeting' | 'delivery_select'
   final String content;
   final String? imageUrl;
   final bool isRead;
   final DateTime createdAt;
+  final Map<String, dynamic>? metadata;
 
   const MessageModel({
     required this.id,
@@ -19,6 +20,7 @@ class MessageModel {
     this.imageUrl,
     this.isRead = false,
     required this.createdAt,
+    this.metadata,
   });
 
   factory MessageModel.fromFirestore(DocumentSnapshot doc) {
@@ -32,6 +34,7 @@ class MessageModel {
       imageUrl: data['imageUrl'],
       isRead: data['isRead'] ?? false,
       createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+      metadata: data['metadata'] != null ? Map<String, dynamic>.from(data['metadata']) : null,
     );
   }
 
@@ -44,6 +47,7 @@ class MessageModel {
       'imageUrl': imageUrl,
       'isRead': isRead,
       'createdAt': Timestamp.fromDate(createdAt),
+      if (metadata != null) 'metadata': metadata,
     };
   }
 }

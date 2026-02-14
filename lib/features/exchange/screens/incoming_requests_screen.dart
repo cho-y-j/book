@@ -54,7 +54,10 @@ class IncomingRequestsScreen extends ConsumerWidget {
                       )),
                       const SizedBox(width: 12),
                       Expanded(child: ElevatedButton(
-                        onPressed: () => context.push(AppRoutes.requesterBookshelfPath(req.requesterUid)),
+                        onPressed: () => context.push(
+                          AppRoutes.requesterBookshelfPath(req.requesterUid),
+                          extra: {'exchangeRequestId': req.id, 'targetBookId': req.targetBookId},
+                        ),
                         child: const Text('책장 보기'),
                       )),
                     ]),

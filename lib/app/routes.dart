@@ -217,7 +217,14 @@ final appRouter = GoRouter(
     GoRoute(path: AppRoutes.exchangeHistory, builder: (_, __) => const ExchangeHistoryScreen()),
     GoRoute(path: AppRoutes.exchangeRequest, builder: (_, state) => ExchangeRequestScreen(targetBookId: state.pathParameters['bookId']!)),
     GoRoute(path: AppRoutes.incomingRequests, builder: (_, __) => const IncomingRequestsScreen()),
-    GoRoute(path: AppRoutes.requesterBookshelf, builder: (_, state) => RequesterBookshelfScreen(requesterUid: state.pathParameters['uid']!)),
+    GoRoute(path: AppRoutes.requesterBookshelf, builder: (_, state) {
+      final extra = state.extra as Map<String, dynamic>?;
+      return RequesterBookshelfScreen(
+        requesterUid: state.pathParameters['uid']!,
+        exchangeRequestId: extra?['exchangeRequestId'] as String?,
+        targetBookId: extra?['targetBookId'] as String?,
+      );
+    }),
     GoRoute(path: AppRoutes.matchConfirm, builder: (_, state) => MatchConfirmScreen(matchId: state.pathParameters['matchId']!)),
     GoRoute(path: AppRoutes.exchangeMethod, builder: (_, state) => ExchangeMethodScreen(matchId: state.pathParameters['matchId']!)),
 

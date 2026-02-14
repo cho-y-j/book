@@ -15,17 +15,17 @@ void main() {
         expect(LevelBadgeService.calculateLevel(9), UserLevel.bookworm);
       });
 
-      test('10~29회 교환은 책다리 메이트', () {
+      test('10~29회 교환은 책가지 메이트', () {
         expect(LevelBadgeService.calculateLevel(10), UserLevel.mate);
         expect(LevelBadgeService.calculateLevel(29), UserLevel.mate);
       });
 
-      test('30~99회 교환은 책다리 마스터', () {
+      test('30~99회 교환은 책가지 마스터', () {
         expect(LevelBadgeService.calculateLevel(30), UserLevel.master);
         expect(LevelBadgeService.calculateLevel(99), UserLevel.master);
       });
 
-      test('100회 이상은 책다리 전설', () {
+      test('100회 이상은 책가지 전설', () {
         expect(LevelBadgeService.calculateLevel(100), UserLevel.legend);
         expect(LevelBadgeService.calculateLevel(500), UserLevel.legend);
       });

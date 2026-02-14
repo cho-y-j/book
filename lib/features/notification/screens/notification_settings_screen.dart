@@ -23,7 +23,7 @@ class _NotificationSettingsScreenState extends ConsumerState<NotificationSetting
     '시스템 공지': false,
   };
   String _selectedSound = '기본 알림음';
-  final _sounds = ['책 넘기는 소리', '"책다리" 효과음', '도서관 벨 소리', '연필 쓰는 소리', '기본 알림음', '무음'];
+  final _sounds = ['책 넘기는 소리', '"책가지" 효과음', '도서관 벨 소리', '연필 쓰는 소리', '기본 알림음', '무음'];
   bool _isLoading = true;
 
   @override

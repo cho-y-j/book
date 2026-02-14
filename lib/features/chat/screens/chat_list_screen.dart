@@ -8,6 +8,17 @@ import '../../../providers/chat_providers.dart';
 
 class ChatListScreen extends ConsumerWidget {
   const ChatListScreen({super.key});
+
+  String _transactionIcon(String? type) {
+    return switch (type) {
+      'exchange' => '🔄',
+      'sale' => '💰',
+      'sharing' => '📚',
+      'donation' => '🎁',
+      _ => '💬',
+    };
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final chatRoomsAsync = ref.watch(chatRoomsProvider);
@@ -23,19 +34,23 @@ class ChatListScreen extends ConsumerWidget {
               const SizedBox(height: 16),
               Text('채팅이 없습니다', style: AppTypography.bodyLarge.copyWith(color: AppColors.textSecondary)),
               const SizedBox(height: 8),
-              Text('책 교환을 시작하면 채팅이 생겨요', style: AppTypography.bodySmall),
+              Text('거래를 시작하면 채팅이 생겨요', style: AppTypography.bodySmall),
             ]));
           }
           return ListView.builder(
             itemCount: rooms.length,
             itemBuilder: (context, index) {
               final room = rooms[index];
+              final icon = _transactionIcon(room.transactionType);
+              final title = room.bookTitle != null
+                  ? '$icon ${room.bookTitle}'
+                  : '$icon 채팅';
               return ListTile(
                 leading: CircleAvatar(
                   backgroundColor: AppColors.primaryLight.withOpacity(0.3),
-                  child: const Icon(Icons.person, color: AppColors.primary),
+                  child: Text(icon, style: const TextStyle(fontSize: 20)),
                 ),
-                title: Text(room.id, style: AppTypography.titleMedium),
+                title: Text(title, style: AppTypography.titleMedium, maxLines: 1, overflow: TextOverflow.ellipsis),
                 subtitle: Text(room.lastMessage ?? '', style: AppTypography.bodySmall, maxLines: 1, overflow: TextOverflow.ellipsis),
                 onTap: () => context.push(AppRoutes.chatRoomPath(room.id)),
               );

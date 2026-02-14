@@ -1,10 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import '../../../app/routes.dart';
 import '../../../app/theme/app_colors.dart';
 import '../../../app/theme/app_typography.dart';
 import '../../../app/theme/app_dimensions.dart';
 import '../../../core/utils/formatters.dart';
+import '../../../core/utils/auto_greeting_helper.dart';
 import '../../../providers/sharing_providers.dart';
+import '../../../providers/chat_providers.dart';
+import '../../../providers/auth_providers.dart';
 
 class IncomingSharingRequestsScreen extends ConsumerWidget {
   const IncomingSharingRequestsScreen({super.key});
@@ -71,8 +76,31 @@ class IncomingSharingRequestsScreen extends ConsumerWidget {
                         Expanded(child: ElevatedButton(
                           style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
                           onPressed: () async {
+                            final user = ref.read(currentUserProvider);
+                            // 1. 수락 처리
                             await ref.read(sharingRepositoryProvider).updateStatus(req.id, 'accepted');
-                            ref.invalidate(incomingSharingRequestsProvider);
+                            // 2. 채팅방 생성 + 자동 인사말
+                            if (user != null) {
+                              final greeting = AutoGreetingHelper.getGreeting(
+                                transactionType: 'sharing',
+                                bookTitle: req.bookTitle,
+                              );
+                              final chatRoomId = await ref.read(chatRepositoryProvider).createTransactionChatRoom(
+                                participants: [req.ownerUid, req.requesterUid],
+                                transactionType: 'sharing',
+                                bookTitle: req.bookTitle,
+                                bookId: req.bookId,
+                                senderUid: user.uid,
+                                autoGreetingMessage: greeting,
+                              );
+                              // 3. chatRoomId 저장
+                              await ref.read(sharingRepositoryProvider).updateChatRoomId(req.id, chatRoomId);
+                              ref.invalidate(incomingSharingRequestsProvider);
+                              // 4. 채팅방으로 이동
+                              if (context.mounted) {
+                                context.push(AppRoutes.chatRoomPath(chatRoomId));
+                              }
+                            }
                           },
                           child: const Text('수락'),
                         )),

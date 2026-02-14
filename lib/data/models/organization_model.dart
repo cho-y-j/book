@@ -9,6 +9,7 @@ class OrganizationModel {
   final String? imageUrl;
   final String category; // 'library' | 'school' | 'ngo'
   final bool isActive;
+  final String? welcomeMessage;
   final DateTime createdAt;
 
   const OrganizationModel({
@@ -20,6 +21,7 @@ class OrganizationModel {
     this.imageUrl,
     required this.category,
     this.isActive = true,
+    this.welcomeMessage,
     required this.createdAt,
   });
 
@@ -34,6 +36,7 @@ class OrganizationModel {
       imageUrl: data['imageUrl'],
       category: data['category'] ?? 'library',
       isActive: data['isActive'] ?? true,
+      welcomeMessage: data['welcomeMessage'],
       createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
     );
   }
@@ -47,6 +50,7 @@ class OrganizationModel {
       'imageUrl': imageUrl,
       'category': category,
       'isActive': isActive,
+      if (welcomeMessage != null) 'welcomeMessage': welcomeMessage,
       'createdAt': Timestamp.fromDate(createdAt),
     };
   }

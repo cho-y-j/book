@@ -66,12 +66,12 @@ class NotificationService {
     if (!kIsWeb) {
       _localNotifications.show(
         notification.hashCode,
-        notification.title ?? '책다리',
+        notification.title ?? '책가지',
         notification.body ?? '',
         const NotificationDetails(
           android: AndroidNotificationDetails(
             'bookbridge_default',
-            '책다리 알림',
+            '책가지 알림',
             channelDescription: '교환 요청, 매칭, 채팅 등 알림',
             importance: Importance.high,
             priority: Priority.high,

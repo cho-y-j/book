@@ -23,6 +23,14 @@ class ApiConstants {
   // 스마트택배 API
   static const deliveryTrackerBaseUrl = 'https://apis.tracker.delivery/graphql';
 
+  // DeepSeek AI API
+  static const deepSeekBaseUrl = 'https://api.deepseek.com/v1';
+  static const _fallbackDeepSeekKey = 'sk-5f94c03c65c24d6f8a6e49df5b108dc5';
+  static String get deepSeekApiKey {
+    final key = EnvConfig.deepSeekApiKey;
+    return key.isNotEmpty ? key : _fallbackDeepSeekKey;
+  }
+
   // Firestore Collections
   static const usersCollection = 'users';
   static const bookInfoCollection = 'book_info';

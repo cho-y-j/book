@@ -9,6 +9,9 @@ class DonationModel {
   final String organizationName;
   final String status; // 'pending' | 'accepted' | 'in_transit' | 'completed' | 'cancelled'
   final String? message;
+  final String? deliveryMethod; // 'courier_request' | 'cod_shipping' | 'in_person'
+  final String? donorAddress;
+  final String? chatRoomId;
   final DateTime createdAt;
   final DateTime updatedAt;
   final DateTime? completedAt;
@@ -22,6 +25,9 @@ class DonationModel {
     required this.organizationName,
     this.status = 'pending',
     this.message,
+    this.deliveryMethod,
+    this.donorAddress,
+    this.chatRoomId,
     required this.createdAt,
     required this.updatedAt,
     this.completedAt,
@@ -38,6 +44,9 @@ class DonationModel {
       organizationName: data['organizationName'] ?? '',
       status: data['status'] ?? 'pending',
       message: data['message'],
+      deliveryMethod: data['deliveryMethod'],
+      donorAddress: data['donorAddress'],
+      chatRoomId: data['chatRoomId'],
       createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
       updatedAt: (data['updatedAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
       completedAt: (data['completedAt'] as Timestamp?)?.toDate(),
@@ -53,6 +62,9 @@ class DonationModel {
       'organizationName': organizationName,
       'status': status,
       'message': message,
+      if (deliveryMethod != null) 'deliveryMethod': deliveryMethod,
+      if (donorAddress != null) 'donorAddress': donorAddress,
+      if (chatRoomId != null) 'chatRoomId': chatRoomId,
       'createdAt': Timestamp.fromDate(createdAt),
       'updatedAt': Timestamp.fromDate(updatedAt),
       'completedAt': completedAt != null ? Timestamp.fromDate(completedAt!) : null,

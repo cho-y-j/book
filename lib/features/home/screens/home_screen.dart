@@ -33,7 +33,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('책다리'),
+        title: const Text('책가지'),
         actions: [
           _NotificationBadge(onTap: () => context.push(AppRoutes.notifications)),
         ],

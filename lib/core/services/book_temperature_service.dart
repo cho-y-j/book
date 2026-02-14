@@ -1,6 +1,6 @@
 import 'dart:math';
 
-/// 책다리 온도 계산 서비스
+/// 책가지 온도 계산 서비스
 class BookTemperatureService {
   BookTemperatureService._();
 

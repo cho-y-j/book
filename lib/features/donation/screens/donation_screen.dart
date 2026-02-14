@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:go_router/go_router.dart';
+import '../../../app/routes.dart';
 import '../../../app/theme/app_colors.dart';
 import '../../../app/theme/app_typography.dart';
 import '../../../app/theme/app_dimensions.dart';
@@ -8,6 +10,8 @@ import '../../../data/models/donation_model.dart';
 import '../../../providers/donation_providers.dart';
 import '../../../providers/book_providers.dart';
 import '../../../providers/auth_providers.dart';
+import '../../../providers/chat_providers.dart';
+import '../../../core/utils/auto_greeting_helper.dart';
 
 class DonationScreen extends ConsumerStatefulWidget {
   final String organizationId;
@@ -108,6 +112,33 @@ class _DonationScreenState extends ConsumerState<DonationScreen> {
               final user = FirebaseAuth.instance.currentUser;
               if (user != null && org != null) {
                 final now = DateTime.now();
+                final chatRepo = ref.read(chatRepositoryProvider);
+
+                // 1. 채팅방 생성 + 자동 인사말
+                final greeting = AutoGreetingHelper.getGreeting(
+                  transactionType: 'donation',
+                  bookTitle: _selectedBookTitle ?? '',
+                  orgWelcomeMessage: org.welcomeMessage,
+                );
+                final chatRoomId = await chatRepo.createTransactionChatRoom(
+                  participants: [user.uid],
+                  transactionType: 'donation',
+                  bookTitle: _selectedBookTitle ?? '',
+                  bookId: _selectedBookId!,
+                  senderUid: user.uid,
+                  organizationId: widget.organizationId,
+                  autoGreetingMessage: greeting,
+                );
+
+                // 2. 전달 방법 선택 카드 삽입
+                await chatRepo.sendSystemMessage(
+                  chatRoomId,
+                  user.uid,
+                  '전달 방법을 선택해주세요.',
+                  type: 'delivery_select',
+                );
+
+                // 3. 기증 모델 생성
                 final donation = DonationModel(
                   id: '',
                   donorUid: user.uid,
@@ -117,15 +148,19 @@ class _DonationScreenState extends ConsumerState<DonationScreen> {
                   organizationName: org.name,
                   status: 'pending',
                   message: _messageController.text.trim().isEmpty ? null : _messageController.text.trim(),
+                  chatRoomId: chatRoomId,
                   createdAt: now,
                   updatedAt: now,
                 );
                 await ref.read(donationRepositoryProvider).createDonation(donation);
-                // Update book status to donated
+
+                // 4. 책 상태 업데이트
                 await ref.read(bookRepositoryProvider).updateBook(_selectedBookId!, {'status': 'donated', 'listingType': 'donation'});
+
+                // 5. 채팅방으로 이동
                 if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('기증 요청을 보냈어요!')));
-                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('기증 요청 완료! 채팅에서 전달 방법을 선택하세요.')));
+                  context.go(AppRoutes.chatRoomPath(chatRoomId));
                 }
               }
             } catch (e) {

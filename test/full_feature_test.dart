@@ -7,11 +7,16 @@ import 'package:book_bridge/data/models/purchase_request_model.dart';
 import 'package:book_bridge/data/models/sharing_request_model.dart';
 import 'package:book_bridge/data/models/donation_model.dart';
 import 'package:book_bridge/data/models/organization_model.dart';
+import 'package:book_bridge/data/models/chat_model.dart';
+import 'package:book_bridge/data/models/message_model.dart';
 import 'package:book_bridge/data/repositories/book_repository.dart';
 import 'package:book_bridge/data/repositories/purchase_repository.dart';
 import 'package:book_bridge/data/repositories/admin_repository.dart';
 import 'package:book_bridge/data/repositories/sharing_repository.dart';
 import 'package:book_bridge/data/repositories/donation_repository.dart';
+import 'package:book_bridge/data/repositories/chat_repository.dart';
+import 'package:book_bridge/core/utils/quick_reply_helper.dart';
+import 'package:book_bridge/core/utils/auto_greeting_helper.dart';
 
 const _defaultGeoPoint = GeoPoint(37.5665, 126.9780);
 
@@ -1571,6 +1576,778 @@ void main() {
       final doc = await fakeFirestore.collection('organizations').doc(orgId).get();
       expect(doc.exists, true);
       expect(doc.data()!['isActive'], false);
+    });
+  });
+
+  // ========== 채팅 개선 신규 테스트 ==========
+
+  group('ChatRoomModel 거래 컨텍스트 직렬화', () {
+    test('거래 컨텍스트 포함 채팅방 생성 및 직렬화', () {
+      final room = ChatRoomModel(
+        id: 'room1',
+        participants: ['user1', 'user2'],
+        matchId: '',
+        createdAt: DateTime(2024, 6, 1),
+        transactionType: 'donation',
+        bookTitle: '기증할 책',
+        bookId: 'book1',
+        deliveryMethod: 'courier_request',
+        organizationId: 'org1',
+      );
+
+      final map = room.toFirestore();
+      expect(map['transactionType'], 'donation');
+      expect(map['bookTitle'], '기증할 책');
+      expect(map['bookId'], 'book1');
+      expect(map['deliveryMethod'], 'courier_request');
+      expect(map['organizationId'], 'org1');
+      expect(map['participants'], ['user1', 'user2']);
+    });
+
+    test('거래 컨텍스트 없는 기존 채팅방 역호환성', () async {
+      final fakeFs = FakeFirebaseFirestore();
+      await fakeFs.collection('chat_rooms').doc('old_room').set({
+        'participants': ['a', 'b'],
+        'matchId': 'match1',
+        'createdAt': Timestamp.now(),
+      });
+
+      final doc = await fakeFs.collection('chat_rooms').doc('old_room').get();
+      final room = ChatRoomModel.fromFirestore(doc);
+
+      expect(room.transactionType, isNull);
+      expect(room.bookTitle, isNull);
+      expect(room.bookId, isNull);
+      expect(room.deliveryMethod, isNull);
+      expect(room.organizationId, isNull);
+      expect(room.participants, ['a', 'b']);
+    });
+
+    test('nullable 필드 미포함 시 toFirestore에 키가 빠짐', () {
+      final room = ChatRoomModel(
+        id: 'room2',
+        participants: ['u1'],
+        matchId: '',
+        createdAt: DateTime(2024, 1, 1),
+      );
+
+      final map = room.toFirestore();
+      expect(map.containsKey('transactionType'), false);
+      expect(map.containsKey('bookTitle'), false);
+      expect(map.containsKey('deliveryMethod'), false);
+      expect(map.containsKey('organizationId'), false);
+    });
+  });
+
+  group('MessageModel metadata 직렬화', () {
+    test('metadata 포함 메시지 직렬화', () {
+      final msg = MessageModel(
+        id: 'msg1',
+        chatRoomId: 'room1',
+        senderUid: 'user1',
+        type: 'delivery_select',
+        content: '전달 방법을 선택해주세요.',
+        createdAt: DateTime(2024, 6, 1),
+        metadata: {'options': ['courier_request', 'cod_shipping', 'in_person']},
+      );
+
+      final map = msg.toFirestore();
+      expect(map['type'], 'delivery_select');
+      expect(map['metadata'], isNotNull);
+      expect((map['metadata'] as Map)['options'], hasLength(3));
+    });
+
+    test('metadata 없는 메시지 직렬화', () {
+      final msg = MessageModel(
+        id: 'msg2',
+        chatRoomId: 'room1',
+        senderUid: 'user1',
+        content: '안녕하세요',
+        createdAt: DateTime(2024, 6, 1),
+      );
+
+      final map = msg.toFirestore();
+      expect(map['type'], 'text');
+      expect(map.containsKey('metadata'), false);
+    });
+
+    test('metadata Firestore 읽기', () async {
+      final fakeFs = FakeFirebaseFirestore();
+      await fakeFs.collection('messages').doc('m1').set({
+        'chatRoomId': 'room1',
+        'senderUid': 'user1',
+        'type': 'delivery_select',
+        'content': '전달 방법을 선택해주세요.',
+        'createdAt': Timestamp.now(),
+        'metadata': {'selected': 'courier_request'},
+      });
+
+      final doc = await fakeFs.collection('messages').doc('m1').get();
+      final msg = MessageModel.fromFirestore(doc);
+
+      expect(msg.type, 'delivery_select');
+      expect(msg.metadata, isNotNull);
+      expect(msg.metadata!['selected'], 'courier_request');
+    });
+
+    test('auto_greeting 메시지 타입', () {
+      final msg = MessageModel(
+        id: 'msg3',
+        chatRoomId: 'room1',
+        senderUid: 'system',
+        type: 'auto_greeting',
+        content: '기증 감사합니다!',
+        createdAt: DateTime(2024, 6, 1),
+      );
+
+      expect(msg.type, 'auto_greeting');
+      final map = msg.toFirestore();
+      expect(map['type'], 'auto_greeting');
+    });
+  });
+
+  group('QuickReplyHelper 테스트', () {
+    test('sharing 빠른 답변 템플릿', () {
+      final templates = QuickReplyHelper.getTemplates('sharing');
+      expect(templates, hasLength(5));
+      expect(templates.first, contains('나눔'));
+      expect(templates, contains('네, 가능해요'));
+    });
+
+    test('donation 빠른 답변 템플릿', () {
+      final templates = QuickReplyHelper.getTemplates('donation');
+      expect(templates, hasLength(5));
+      expect(templates.first, contains('기증'));
+      expect(templates, contains('택배로 보내드릴게요'));
+    });
+
+    test('exchange 빠른 답변 템플릿', () {
+      final templates = QuickReplyHelper.getTemplates('exchange');
+      expect(templates, hasLength(5));
+      expect(templates.first, contains('안녕하세요'));
+      expect(templates, contains('직거래 가능하세요?'));
+    });
+
+    test('sale 빠른 답변 템플릿', () {
+      final templates = QuickReplyHelper.getTemplates('sale');
+      expect(templates, hasLength(5));
+      expect(templates.first, contains('구매'));
+      expect(templates, contains('혹시 가격 조정이 가능한가요?'));
+    });
+
+    test('unknown 타입 기본 템플릿', () {
+      final templates = QuickReplyHelper.getTemplates(null);
+      expect(templates, hasLength(4));
+      expect(templates, contains('안녕하세요!'));
+    });
+
+    test('빈 문자열 타입도 기본 템플릿', () {
+      final templates = QuickReplyHelper.getTemplates('unknown_type');
+      expect(templates, hasLength(4));
+    });
+  });
+
+  group('AutoGreetingHelper 테스트', () {
+    test('donation 기본 인사말', () {
+      final greeting = AutoGreetingHelper.getGreeting(
+        transactionType: 'donation',
+        bookTitle: '테스트 책',
+      );
+      expect(greeting, contains('기증 감사합니다'));
+    });
+
+    test('donation 기관 환영 메시지 우선', () {
+      final greeting = AutoGreetingHelper.getGreeting(
+        transactionType: 'donation',
+        bookTitle: '테스트 책',
+        orgWelcomeMessage: '한국어린이재단에 기증해주셔서 감사합니다!',
+      );
+      expect(greeting, '한국어린이재단에 기증해주셔서 감사합니다!');
+    });
+
+    test('sharing 인사말에 책 제목 포함', () {
+      final greeting = AutoGreetingHelper.getGreeting(
+        transactionType: 'sharing',
+        bookTitle: '어린왕자',
+      );
+      expect(greeting, contains('어린왕자'));
+      expect(greeting, contains('나눔'));
+    });
+
+    test('exchange 인사말', () {
+      final greeting = AutoGreetingHelper.getGreeting(
+        transactionType: 'exchange',
+        bookTitle: 'Clean Code',
+      );
+      expect(greeting, contains('Clean Code'));
+      expect(greeting, contains('교환'));
+    });
+
+    test('sale 인사말에 가격 포함', () {
+      final greeting = AutoGreetingHelper.getGreeting(
+        transactionType: 'sale',
+        bookTitle: '달러구트',
+        price: 15000,
+      );
+      expect(greeting, contains('달러구트'));
+      expect(greeting, contains('15000'));
+    });
+
+    test('unknown 타입 기본 인사말', () {
+      final greeting = AutoGreetingHelper.getGreeting(
+        transactionType: 'other',
+        bookTitle: '',
+      );
+      expect(greeting, '채팅이 시작되었습니다.');
+    });
+  });
+
+  group('DonationModel 배송/채팅 연계 필드', () {
+    test('deliveryMethod, donorAddress, chatRoomId 직렬화', () {
+      final donation = DonationModel(
+        id: 'don1',
+        donorUid: 'donor1',
+        bookId: 'book1',
+        bookTitle: '기증 책',
+        organizationId: 'org1',
+        organizationName: '서울도서관',
+        status: 'accepted',
+        deliveryMethod: 'courier_request',
+        donorAddress: '서울 강남구 역삼동 123',
+        chatRoomId: 'chatRoom1',
+        createdAt: DateTime(2024, 6, 1),
+        updatedAt: DateTime(2024, 6, 1),
+      );
+
+      final map = donation.toFirestore();
+      expect(map['deliveryMethod'], 'courier_request');
+      expect(map['donorAddress'], '서울 강남구 역삼동 123');
+      expect(map['chatRoomId'], 'chatRoom1');
+    });
+
+    test('배송 필드 없는 기존 기증 역호환성', () async {
+      final fakeFs = FakeFirebaseFirestore();
+      await fakeFs.collection('donations').doc('old_don').set({
+        'donorUid': 'donor1',
+        'bookId': 'book1',
+        'bookTitle': '기존 기증',
+        'organizationId': 'org1',
+        'organizationName': '도서관',
+        'status': 'pending',
+        'createdAt': Timestamp.now(),
+        'updatedAt': Timestamp.now(),
+      });
+
+      final doc = await fakeFs.collection('donations').doc('old_don').get();
+      final donation = DonationModel.fromFirestore(doc);
+
+      expect(donation.deliveryMethod, isNull);
+      expect(donation.donorAddress, isNull);
+      expect(donation.chatRoomId, isNull);
+    });
+
+    test('Firestore 읽기 - 배송 필드 포함', () async {
+      final fakeFs = FakeFirebaseFirestore();
+      await fakeFs.collection('donations').doc('new_don').set({
+        'donorUid': 'donor1',
+        'bookId': 'book1',
+        'bookTitle': '새 기증',
+        'organizationId': 'org1',
+        'organizationName': '도서관',
+        'status': 'in_transit',
+        'deliveryMethod': 'cod_shipping',
+        'donorAddress': '부산 해운대구',
+        'chatRoomId': 'chat123',
+        'createdAt': Timestamp.now(),
+        'updatedAt': Timestamp.now(),
+      });
+
+      final doc = await fakeFs.collection('donations').doc('new_don').get();
+      final donation = DonationModel.fromFirestore(doc);
+
+      expect(donation.deliveryMethod, 'cod_shipping');
+      expect(donation.donorAddress, '부산 해운대구');
+      expect(donation.chatRoomId, 'chat123');
+    });
+  });
+
+  group('OrganizationModel welcomeMessage 테스트', () {
+    test('welcomeMessage 포함 기관 직렬화', () {
+      final org = OrganizationModel(
+        id: 'org1',
+        name: '한국어린이재단',
+        description: '어린이 재단',
+        address: '서울 종로구',
+        category: 'ngo',
+        isActive: true,
+        welcomeMessage: '따뜻한 마음에 감사드립니다!',
+        createdAt: DateTime(2024, 1, 1),
+      );
+
+      final map = org.toFirestore();
+      expect(map['welcomeMessage'], '따뜻한 마음에 감사드립니다!');
+    });
+
+    test('welcomeMessage 없는 기관 - 키 미포함', () {
+      final org = OrganizationModel(
+        id: 'org2',
+        name: '서울도서관',
+        description: '도서관',
+        address: '서울',
+        category: 'library',
+        createdAt: DateTime(2024, 1, 1),
+      );
+
+      final map = org.toFirestore();
+      expect(map.containsKey('welcomeMessage'), false);
+    });
+
+    test('Firestore 읽기 - welcomeMessage', () async {
+      final fakeFs = FakeFirebaseFirestore();
+      await fakeFs.collection('organizations').doc('org_w').set({
+        'name': '재단',
+        'description': '',
+        'address': '서울',
+        'category': 'ngo',
+        'isActive': true,
+        'welcomeMessage': '감사합니다!',
+        'createdAt': Timestamp.now(),
+      });
+
+      final doc = await fakeFs.collection('organizations').doc('org_w').get();
+      final org = OrganizationModel.fromFirestore(doc);
+      expect(org.welcomeMessage, '감사합니다!');
+    });
+
+    test('Firestore 읽기 - welcomeMessage 없음', () async {
+      final fakeFs = FakeFirebaseFirestore();
+      await fakeFs.collection('organizations').doc('org_nw').set({
+        'name': '도서관',
+        'description': '',
+        'address': '서울',
+        'category': 'library',
+        'isActive': true,
+        'createdAt': Timestamp.now(),
+      });
+
+      final doc = await fakeFs.collection('organizations').doc('org_nw').get();
+      final org = OrganizationModel.fromFirestore(doc);
+      expect(org.welcomeMessage, isNull);
+    });
+  });
+
+  group('ChatRepository 거래 채팅 통합 테스트', () {
+    late ChatRepository chatRepo;
+    late FakeFirebaseFirestore fakeFs;
+
+    setUp(() {
+      fakeFs = FakeFirebaseFirestore();
+      chatRepo = ChatRepository(firestore: fakeFs);
+    });
+
+    /// FakeFirebaseFirestore의 WriteBatch 제한으로 직접 set으로 채팅방 생성
+    Future<String> createTestChatRoom(FakeFirebaseFirestore fs, {
+      List<String> participants = const ['u1'],
+      String? transactionType,
+      String? bookTitle,
+      String? bookId,
+      String? organizationId,
+    }) async {
+      final docRef = fs.collection('chat_rooms').doc();
+      await docRef.set({
+        'participants': participants,
+        'matchId': '',
+        'createdAt': Timestamp.now(),
+        if (transactionType != null) 'transactionType': transactionType,
+        if (bookTitle != null) 'bookTitle': bookTitle,
+        if (bookId != null) 'bookId': bookId,
+        if (organizationId != null) 'organizationId': organizationId,
+      });
+      return docRef.id;
+    }
+
+    test('ChatRoomModel 거래 컨텍스트 Firestore 직접 생성/읽기', () async {
+      final docRef = fakeFs.collection('chat_rooms').doc('test_room');
+      await docRef.set({
+        'participants': ['donor1', 'org_admin'],
+        'matchId': '',
+        'createdAt': Timestamp.now(),
+        'transactionType': 'donation',
+        'bookTitle': '기증할 책',
+        'bookId': 'book1',
+        'organizationId': 'org1',
+        'lastMessage': '기증 감사합니다!',
+      });
+
+      final roomDoc = await fakeFs.collection('chat_rooms').doc('test_room').get();
+      expect(roomDoc.exists, true);
+      final room = ChatRoomModel.fromFirestore(roomDoc);
+      expect(room.transactionType, 'donation');
+      expect(room.bookTitle, '기증할 책');
+      expect(room.bookId, 'book1');
+      expect(room.organizationId, 'org1');
+      expect(room.participants, ['donor1', 'org_admin']);
+    });
+
+    test('sendSystemMessage - 시스템 메시지 전송', () async {
+      final chatRoomId = await createTestChatRoom(fakeFs,
+        transactionType: 'donation', bookTitle: '책', bookId: 'b1',
+      );
+
+      await chatRepo.sendSystemMessage(
+        chatRoomId, 'u1', '전달 방법을 선택해주세요.', type: 'delivery_select',
+      );
+
+      final msgSnap = await fakeFs.collection('messages')
+          .where('chatRoomId', isEqualTo: chatRoomId)
+          .where('type', isEqualTo: 'delivery_select')
+          .get();
+      expect(msgSnap.docs.length, 1);
+      expect(msgSnap.docs.first.data()['content'], '전달 방법을 선택해주세요.');
+    });
+
+    test('updateDeliveryMethod - 전달 방법 업데이트', () async {
+      final chatRoomId = await createTestChatRoom(fakeFs,
+        transactionType: 'donation', bookTitle: '책', bookId: 'b1',
+      );
+
+      // 전달 방법 없음 확인
+      var roomDoc = await fakeFs.collection('chat_rooms').doc(chatRoomId).get();
+      expect(roomDoc.data()!.containsKey('deliveryMethod'), false);
+
+      // 전달 방법 업데이트
+      await chatRepo.updateDeliveryMethod(chatRoomId, 'cod_shipping');
+
+      roomDoc = await fakeFs.collection('chat_rooms').doc(chatRoomId).get();
+      expect(roomDoc.data()!['deliveryMethod'], 'cod_shipping');
+    });
+
+    test('getRecentMessages - 최근 메시지 조회', () async {
+      final chatRoomId = await createTestChatRoom(fakeFs,
+        transactionType: 'sharing', bookTitle: '나눔 책', bookId: 'b1',
+        participants: ['u1', 'u2'],
+      );
+
+      // 메시지 직접 추가
+      for (final msg in [
+        {'senderUid': 'u1', 'content': '안녕하세요', 'createdAt': Timestamp.fromDate(DateTime(2024, 6, 1, 10, 1))},
+        {'senderUid': 'u2', 'content': '반갑습니다', 'createdAt': Timestamp.fromDate(DateTime(2024, 6, 1, 10, 2))},
+        {'senderUid': 'u1', 'content': '언제 가능하세요?', 'createdAt': Timestamp.fromDate(DateTime(2024, 6, 1, 10, 3))},
+      ]) {
+        await fakeFs.collection('messages').add({
+          'chatRoomId': chatRoomId,
+          'senderUid': msg['senderUid'],
+          'content': msg['content'],
+          'type': 'text',
+          'isRead': false,
+          'createdAt': msg['createdAt'],
+        });
+      }
+
+      final recent = await chatRepo.getRecentMessages(chatRoomId, limit: 3);
+      expect(recent.length, 3);
+    });
+
+    test('watchChatRoom - 단건 스트림', () async {
+      final chatRoomId = await createTestChatRoom(fakeFs,
+        transactionType: 'donation', bookTitle: '스트림 테스트', bookId: 'b1',
+      );
+
+      final room = await chatRepo.watchChatRoom(chatRoomId).first;
+      expect(room, isNotNull);
+      expect(room!.bookTitle, '스트림 테스트');
+      expect(room.transactionType, 'donation');
+    });
+
+    test('watchChatRoom - 존재하지 않는 방', () async {
+      final room = await chatRepo.watchChatRoom('nonexistent').first;
+      expect(room, isNull);
+    });
+
+    test('sendMessage - 일반 메시지 전송 후 lastMessage 업데이트', () async {
+      final chatRoomId = await createTestChatRoom(fakeFs,
+        transactionType: 'exchange', bookTitle: '교환 책',
+      );
+
+      await chatRepo.sendMessage(MessageModel(
+        id: '', chatRoomId: chatRoomId, senderUid: 'u1',
+        content: '안녕하세요', createdAt: DateTime(2024, 6, 1),
+      ));
+
+      final roomDoc = await fakeFs.collection('chat_rooms').doc(chatRoomId).get();
+      expect(roomDoc.data()!['lastMessage'], '안녕하세요');
+    });
+  });
+
+  group('SharingRepository chatRoomId 업데이트 테스트', () {
+    late SharingRepository sharingRepo;
+    late FakeFirebaseFirestore fakeFs;
+
+    setUp(() {
+      fakeFs = FakeFirebaseFirestore();
+      sharingRepo = SharingRepository(firestore: fakeFs);
+    });
+
+    test('updateChatRoomId - 나눔 요청에 채팅방 ID 연결', () async {
+      final requestId = await sharingRepo.createSharingRequest(SharingRequestModel(
+        id: '', requesterUid: 'req1', ownerUid: 'own1',
+        bookId: 'book1', bookTitle: '나눔 책', status: 'accepted',
+        createdAt: DateTime.now(), updatedAt: DateTime.now(),
+      ));
+
+      await sharingRepo.updateChatRoomId(requestId, 'chatRoom123');
+
+      final doc = await fakeFs.collection('sharing_requests').doc(requestId).get();
+      expect(doc.data()!['chatRoomId'], 'chatRoom123');
+    });
+  });
+
+  group('기증 → 채팅 → 전달 방법 통합 플로우', () {
+    late ChatRepository chatRepo;
+    late DonationRepository donationRepo;
+    late FakeFirebaseFirestore fakeFs;
+
+    setUp(() {
+      fakeFs = FakeFirebaseFirestore();
+      chatRepo = ChatRepository(firestore: fakeFs);
+      donationRepo = DonationRepository(firestore: fakeFs);
+    });
+
+    /// 테스트용 채팅방 직접 생성 (FakeFirebaseFirestore WriteBatch 제한 우회)
+    Future<String> createTestRoom({
+      List<String> participants = const ['donor1'],
+      String transactionType = 'donation',
+      String bookTitle = '책',
+      String bookId = 'b1',
+      String? organizationId,
+      String? autoGreeting,
+    }) async {
+      final docRef = fakeFs.collection('chat_rooms').doc();
+      await docRef.set({
+        'participants': participants,
+        'matchId': '',
+        'createdAt': Timestamp.now(),
+        'transactionType': transactionType,
+        'bookTitle': bookTitle,
+        'bookId': bookId,
+        if (organizationId != null) 'organizationId': organizationId,
+        if (autoGreeting != null) 'lastMessage': autoGreeting,
+      });
+      // 인사말 메시지도 직접 추가
+      if (autoGreeting != null) {
+        await fakeFs.collection('messages').add({
+          'chatRoomId': docRef.id,
+          'senderUid': participants.first,
+          'type': 'auto_greeting',
+          'content': autoGreeting,
+          'isRead': false,
+          'createdAt': Timestamp.now(),
+        });
+      }
+      return docRef.id;
+    }
+
+    test('기증 → 채팅방 생성 → 전달방법 선택 → 주소 메시지 전체 플로우', () async {
+      // 1. 기관 등록 (welcomeMessage 포함)
+      final orgId = await donationRepo.createOrganization(OrganizationModel(
+        id: '', name: '서울도서관', description: '도서관',
+        address: '서울 중구 세종대로 110', category: 'library',
+        isActive: true, welcomeMessage: '서울도서관에 기증해주셔서 감사합니다!',
+        createdAt: DateTime.now(),
+      ));
+
+      // 2. AutoGreetingHelper 로직 검증
+      final greeting = AutoGreetingHelper.getGreeting(
+        transactionType: 'donation',
+        bookTitle: '기증할 프로그래밍 책',
+        orgWelcomeMessage: '서울도서관에 기증해주셔서 감사합니다!',
+      );
+      expect(greeting, '서울도서관에 기증해주셔서 감사합니다!');
+
+      // 3. 채팅방 + 인사말 생성
+      final chatRoomId = await createTestRoom(
+        organizationId: orgId,
+        bookTitle: '기증할 프로그래밍 책',
+        bookId: 'book1',
+        autoGreeting: greeting,
+      );
+
+      // 4. delivery_select 시스템 메시지 삽입
+      await chatRepo.sendSystemMessage(
+        chatRoomId, 'donor1', '전달 방법을 선택해주세요.', type: 'delivery_select',
+      );
+
+      // 5. 기증 모델 생성 (chatRoomId 연결)
+      final donationId = await donationRepo.createDonation(DonationModel(
+        id: '', donorUid: 'donor1', bookId: 'book1',
+        bookTitle: '기증할 프로그래밍 책',
+        organizationId: orgId, organizationName: '서울도서관',
+        status: 'pending', chatRoomId: chatRoomId,
+        createdAt: DateTime.now(), updatedAt: DateTime.now(),
+      ));
+
+      // 6. 기증자가 택배 요청 선택
+      await chatRepo.updateDeliveryMethod(chatRoomId, 'courier_request');
+      await chatRepo.sendSystemMessage(
+        chatRoomId, 'donor1', '전달 방법: 택배 요청', type: 'system',
+      );
+      await chatRepo.sendSystemMessage(
+        chatRoomId, 'donor1',
+        '기부자님 주소지 서울 강남구 역삼동 123이(가) 맞나요? 맞으면 택배 수거를 요청하겠습니다.',
+        type: 'system',
+      );
+
+      // 검증: 채팅방 deliveryMethod
+      final roomDoc = await fakeFs.collection('chat_rooms').doc(chatRoomId).get();
+      expect(roomDoc.data()!['deliveryMethod'], 'courier_request');
+
+      // 검증: 메시지 (인사말 + delivery_select + 전달방법 + 주소확인 = 4개)
+      final allMsgs = await fakeFs.collection('messages')
+          .where('chatRoomId', isEqualTo: chatRoomId)
+          .get();
+      expect(allMsgs.docs.length, 4);
+
+      // 검증: 기증 모델에 chatRoomId
+      final donDoc = await fakeFs.collection('donations').doc(donationId).get();
+      expect(donDoc.data()!['chatRoomId'], chatRoomId);
+    });
+
+    test('착불 선택 시 기관 주소 안내 메시지', () async {
+      final orgId = await donationRepo.createOrganization(OrganizationModel(
+        id: '', name: '국립도서관', description: '',
+        address: '서울 서초구 반포대로 201', category: 'library',
+        isActive: true, createdAt: DateTime.now(),
+      ));
+
+      final chatRoomId = await createTestRoom(
+        organizationId: orgId, autoGreeting: '기증 감사합니다!',
+      );
+
+      // 착불 선택
+      await chatRepo.updateDeliveryMethod(chatRoomId, 'cod_shipping');
+      await chatRepo.sendSystemMessage(
+        chatRoomId, 'donor1',
+        '기관 주소: 서울 서초구 반포대로 201\n착불로 보내주세요.',
+        type: 'system',
+      );
+
+      final roomDoc = await fakeFs.collection('chat_rooms').doc(chatRoomId).get();
+      expect(roomDoc.data()!['deliveryMethod'], 'cod_shipping');
+
+      final msgs = await fakeFs.collection('messages')
+          .where('chatRoomId', isEqualTo: chatRoomId)
+          .get();
+      final addressMsg = msgs.docs.where((d) => d.data()['content'].toString().contains('반포대로')).toList();
+      expect(addressMsg, isNotEmpty);
+    });
+
+    test('직접 방문 선택 시 주소 + 시간 안내', () async {
+      final orgId = await donationRepo.createOrganization(OrganizationModel(
+        id: '', name: '학교', description: '',
+        address: '서울 관악구 관악로 1', category: 'school',
+        isActive: true, createdAt: DateTime.now(),
+      ));
+
+      final chatRoomId = await createTestRoom(
+        organizationId: orgId, autoGreeting: '기증 감사합니다!',
+      );
+
+      await chatRepo.updateDeliveryMethod(chatRoomId, 'in_person');
+      await chatRepo.sendSystemMessage(
+        chatRoomId, 'donor1',
+        '기관 주소: 서울 관악구 관악로 1\n방문해주세요.',
+        type: 'system',
+      );
+      await chatRepo.sendSystemMessage(
+        chatRoomId, 'donor1',
+        '방문 가능한 시간을 알려주세요.',
+        type: 'system',
+      );
+
+      final roomDoc = await fakeFs.collection('chat_rooms').doc(chatRoomId).get();
+      expect(roomDoc.data()!['deliveryMethod'], 'in_person');
+
+      final msgs = await fakeFs.collection('messages')
+          .where('chatRoomId', isEqualTo: chatRoomId)
+          .get();
+      // 인사말 + 주소 + 시간 안내 = 3개
+      expect(msgs.docs.length, 3);
+    });
+  });
+
+  group('나눔 수락 → 채팅 연계 통합 플로우', () {
+    late SharingRepository sharingRepo;
+    late FakeFirebaseFirestore fakeFs;
+
+    setUp(() {
+      fakeFs = FakeFirebaseFirestore();
+      sharingRepo = SharingRepository(firestore: fakeFs);
+    });
+
+    test('나눔 수락 → 채팅방 생성 → chatRoomId 업데이트', () async {
+      // 1. 나눔 요청 생성
+      final requestId = await sharingRepo.createSharingRequest(SharingRequestModel(
+        id: '', requesterUid: 'req1', ownerUid: 'own1',
+        bookId: 'book1', bookTitle: '어린왕자', status: 'pending',
+        message: '나눔 부탁드립니다',
+        createdAt: DateTime.now(), updatedAt: DateTime.now(),
+      ));
+
+      // 2. 수락
+      await sharingRepo.updateStatus(requestId, 'accepted');
+
+      // 3. AutoGreetingHelper 검증
+      final greeting = AutoGreetingHelper.getGreeting(
+        transactionType: 'sharing',
+        bookTitle: '어린왕자',
+      );
+      expect(greeting, contains('어린왕자'));
+      expect(greeting, contains('나눔'));
+
+      // 4. 채팅방 직접 생성 (FakeFirebaseFirestore WriteBatch 제한 우회)
+      final chatRoomRef = fakeFs.collection('chat_rooms').doc();
+      final chatRoomId = chatRoomRef.id;
+      await chatRoomRef.set({
+        'participants': ['own1', 'req1'],
+        'matchId': '',
+        'createdAt': Timestamp.now(),
+        'transactionType': 'sharing',
+        'bookTitle': '어린왕자',
+        'bookId': 'book1',
+        'lastMessage': greeting,
+      });
+
+      // 인사말 메시지 직접 추가
+      await fakeFs.collection('messages').add({
+        'chatRoomId': chatRoomId,
+        'senderUid': 'own1',
+        'type': 'auto_greeting',
+        'content': greeting,
+        'isRead': false,
+        'createdAt': Timestamp.now(),
+      });
+
+      // 5. chatRoomId 업데이트
+      await sharingRepo.updateChatRoomId(requestId, chatRoomId);
+
+      // 검증
+      final reqDoc = await fakeFs.collection('sharing_requests').doc(requestId).get();
+      expect(reqDoc.data()!['status'], 'accepted');
+      expect(reqDoc.data()!['chatRoomId'], chatRoomId);
+
+      final roomDoc = await fakeFs.collection('chat_rooms').doc(chatRoomId).get();
+      expect(roomDoc.data()!['transactionType'], 'sharing');
+      expect(roomDoc.data()!['bookTitle'], '어린왕자');
+      expect(List<String>.from(roomDoc.data()!['participants']), contains('req1'));
+      expect(List<String>.from(roomDoc.data()!['participants']), contains('own1'));
+
+      // 인사말 메시지 확인
+      final msgs = await fakeFs.collection('messages')
+          .where('chatRoomId', isEqualTo: chatRoomId)
+          .get();
+      expect(msgs.docs.length, 1);
+      expect(msgs.docs.first.data()['type'], 'auto_greeting');
+      expect(msgs.docs.first.data()['content'], contains('어린왕자'));
     });
   });
 

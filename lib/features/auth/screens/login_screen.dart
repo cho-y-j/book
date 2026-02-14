@@ -68,9 +68,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               const SizedBox(height: 60),
               const Icon(Icons.menu_book_rounded, size: 64, color: AppColors.primary),
               const SizedBox(height: 16),
-              Text('책다리', style: AppTypography.headlineLarge, textAlign: TextAlign.center),
+              Text('책가지', style: AppTypography.headlineLarge, textAlign: TextAlign.center),
               const SizedBox(height: 8),
-              Text('책으로 연결되는 다리', style: AppTypography.bodyMedium.copyWith(color: AppColors.textSecondary), textAlign: TextAlign.center),
+              Text('책으로 뻗어가는 가지', style: AppTypography.bodyMedium.copyWith(color: AppColors.textSecondary), textAlign: TextAlign.center),
               const SizedBox(height: 48),
               if (_error != null) ...[
                 Container(

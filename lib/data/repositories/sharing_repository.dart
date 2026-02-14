@@ -27,6 +27,13 @@ class SharingRepository {
     await _sharingRef.doc(requestId).update(data);
   }
 
+  Future<void> updateChatRoomId(String requestId, String chatRoomId) async {
+    await _sharingRef.doc(requestId).update({
+      'chatRoomId': chatRoomId,
+      'updatedAt': Timestamp.now(),
+    });
+  }
+
   Stream<List<SharingRequestModel>> watchIncomingRequests(String ownerUid) {
     return _sharingRef
         .where('ownerUid', isEqualTo: ownerUid)

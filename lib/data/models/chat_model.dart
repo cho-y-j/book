@@ -8,6 +8,12 @@ class ChatRoomModel {
   final DateTime? lastMessageAt;
   final Map<String, int> unreadCount;
   final DateTime createdAt;
+  // 거래 컨텍스트
+  final String? transactionType; // 'exchange'|'sale'|'sharing'|'donation'
+  final String? bookTitle;
+  final String? bookId;
+  final String? deliveryMethod; // 'courier_request'|'cod_shipping'|'in_person'
+  final String? organizationId;
 
   const ChatRoomModel({
     required this.id,
@@ -17,6 +23,11 @@ class ChatRoomModel {
     this.lastMessageAt,
     this.unreadCount = const {},
     required this.createdAt,
+    this.transactionType,
+    this.bookTitle,
+    this.bookId,
+    this.deliveryMethod,
+    this.organizationId,
   });
 
   factory ChatRoomModel.fromFirestore(DocumentSnapshot doc) {
@@ -29,6 +40,11 @@ class ChatRoomModel {
       lastMessageAt: (data['lastMessageAt'] as Timestamp?)?.toDate(),
       unreadCount: Map<String, int>.from(data['unreadCount'] ?? {}),
       createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+      transactionType: data['transactionType'],
+      bookTitle: data['bookTitle'],
+      bookId: data['bookId'],
+      deliveryMethod: data['deliveryMethod'],
+      organizationId: data['organizationId'],
     );
   }
 
@@ -40,6 +56,11 @@ class ChatRoomModel {
       'lastMessageAt': lastMessageAt != null ? Timestamp.fromDate(lastMessageAt!) : null,
       'unreadCount': unreadCount,
       'createdAt': Timestamp.fromDate(createdAt),
+      if (transactionType != null) 'transactionType': transactionType,
+      if (bookTitle != null) 'bookTitle': bookTitle,
+      if (bookId != null) 'bookId': bookId,
+      if (deliveryMethod != null) 'deliveryMethod': deliveryMethod,
+      if (organizationId != null) 'organizationId': organizationId,
     };
   }
 }

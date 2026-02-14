@@ -57,9 +57,9 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
           children: const [
             Icon(Icons.menu_book_rounded, size: 80, color: Colors.white),
             SizedBox(height: 16),
-            Text('책다리', style: TextStyle(fontSize: 36, fontWeight: FontWeight.w700, color: Colors.white)),
+            Text('책가지', style: TextStyle(fontSize: 36, fontWeight: FontWeight.w700, color: Colors.white)),
             SizedBox(height: 8),
-            Text('BookBridge', style: TextStyle(fontSize: 16, color: Colors.white70)),
+            Text('BookGaji', style: TextStyle(fontSize: 16, color: Colors.white70)),
             SizedBox(height: 32),
             SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white70)),
           ],

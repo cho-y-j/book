@@ -59,6 +59,16 @@ enum DeliveryStatus {
   delivered,
 }
 
+/// 기증 전달 방법
+enum DonationDeliveryMethod {
+  courierRequest('택배 요청'),
+  codShipping('착불 발송'),
+  inPerson('직접 방문 전달');
+
+  const DonationDeliveryMethod(this.label);
+  final String label;
+}
+
 /// 메시지 타입
 enum MessageType {
   text,
@@ -195,9 +205,9 @@ enum BookGenre {
 enum UserLevel {
   sprout(1, '새싹 독서가', 0),
   bookworm(2, '책벌레', 3),
-  mate(3, '책다리 메이트', 10),
-  master(4, '책다리 마스터', 30),
-  legend(5, '책다리 전설', 100);
+  mate(3, '책가지 메이트', 10),
+  master(4, '책가지 마스터', 30),
+  legend(5, '책가지 전설', 100);
 
   const UserLevel(this.value, this.label, this.minExchanges);
   final int value;
