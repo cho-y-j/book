@@ -52,7 +52,7 @@ class MyProfileScreen extends ConsumerWidget {
             _MenuTile(icon: Icons.shelves, title: '내 책장', onTap: () => context.push(AppRoutes.myBookshelf)),
             _MenuTile(icon: Icons.bookmark_outline, title: '위시리스트', onTap: () => context.push(AppRoutes.wishlist)),
             _MenuTile(icon: Icons.swap_horiz, title: '교환 내역', onTap: () => context.push(AppRoutes.exchangeHistory)),
-            _MenuTile(icon: Icons.star_outline, title: '받은 후기', onTap: () {}),
+            _MenuTile(icon: Icons.star_outline, title: '받은 후기', onTap: () => context.push(AppRoutes.receivedReviews)),
             _MenuTile(icon: Icons.mail_outline, title: '받은 요청', onTap: () => context.push(AppRoutes.incomingRequests)),
             _MenuTile(icon: Icons.groups_outlined, title: '동네 책모임', onTap: () => context.push(AppRoutes.bookClubList)),
             _MenuTile(icon: Icons.bar_chart, title: '나의 통계', onTap: () => context.push(AppRoutes.myStats)),

@@ -38,6 +38,7 @@ import '../features/notification/screens/notification_list_screen.dart';
 import '../features/notification/screens/notification_settings_screen.dart';
 // Review
 import '../features/review/screens/write_review_screen.dart';
+import '../features/review/screens/received_reviews_screen.dart';
 // Wishlist
 import '../features/wishlist/screens/wishlist_screen.dart';
 // Book Club
@@ -100,6 +101,7 @@ class AppRoutes {
 
   // Review
   static const writeReview = '/write-review/:matchId';
+  static const receivedReviews = '/received-reviews';
 
   // Wishlist
   static const wishlist = '/wishlist';
@@ -184,6 +186,7 @@ final appRouter = GoRouter(
 
     // === Review ===
     GoRoute(path: AppRoutes.writeReview, builder: (_, state) => WriteReviewScreen(matchId: state.pathParameters['matchId']!)),
+    GoRoute(path: AppRoutes.receivedReviews, builder: (_, __) => const ReceivedReviewsScreen()),
 
     // === Wishlist ===
     GoRoute(path: AppRoutes.wishlist, builder: (_, __) => const WishlistScreen()),

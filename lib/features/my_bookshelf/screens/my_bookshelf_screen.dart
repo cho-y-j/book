@@ -27,8 +27,83 @@ class MyBookshelfScreen extends ConsumerWidget {
       case 'available': return AppColors.success;
       case 'reserved': return AppColors.warning;
       case 'exchanged': return AppColors.textSecondary;
+      case 'hidden': return Colors.grey;
       default: return AppColors.textSecondary;
     }
+  }
+
+  void _showManageSheet(BuildContext context, WidgetRef ref, dynamic book, String uid) {
+    showModalBottomSheet(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Container(
+            width: 40, height: 4, margin: const EdgeInsets.symmetric(vertical: 12),
+            decoration: BoxDecoration(color: AppColors.divider, borderRadius: BorderRadius.circular(2)),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: Text(book.title, style: AppTypography.titleMedium, maxLines: 1, overflow: TextOverflow.ellipsis),
+          ),
+          const Divider(),
+          ListTile(
+            leading: const Icon(Icons.edit_outlined),
+            title: const Text('수정하기'),
+            onTap: () { Navigator.pop(ctx); context.push(AppRoutes.bookEditPath(book.id)); },
+          ),
+          ListTile(
+            leading: Icon(book.status == 'hidden' ? Icons.visibility : Icons.visibility_off_outlined),
+            title: Text(book.status == 'hidden' ? '게시하기' : '가리기'),
+            subtitle: Text(book.status == 'hidden' ? '다시 다른 사용자에게 보입니다' : '다른 사용자에게 보이지 않습니다'),
+            onTap: () {
+              Navigator.pop(ctx);
+              final willHide = book.status != 'hidden';
+              ref.read(bookRepositoryProvider).toggleHideBook(book.id, willHide);
+              ref.invalidate(userBooksProvider(uid));
+              ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(willHide ? '게시물을 가렸습니다' : '게시물을 다시 게시합니다')));
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.arrow_upward),
+            title: const Text('끌어올리기'),
+            subtitle: const Text('홈 피드 상단에 다시 노출됩니다'),
+            onTap: () {
+              Navigator.pop(ctx);
+              ref.read(bookRepositoryProvider).bumpBook(book.id);
+              ref.invalidate(userBooksProvider(uid));
+              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('끌어올리기 완료!'), backgroundColor: AppColors.success));
+            },
+          ),
+          ListTile(
+            leading: Icon(Icons.delete_outline, color: AppColors.error),
+            title: Text('삭제하기', style: TextStyle(color: AppColors.error)),
+            onTap: () {
+              Navigator.pop(ctx);
+              showDialog(
+                context: context,
+                builder: (dlg) => AlertDialog(
+                  title: const Text('책 삭제'),
+                  content: Text('"${book.title}"을(를) 삭제하시겠습니까?\n삭제 후 복구할 수 없습니다.'),
+                  actions: [
+                    TextButton(onPressed: () => Navigator.pop(dlg), child: const Text('취소')),
+                    TextButton(
+                      onPressed: () {
+                        Navigator.pop(dlg);
+                        ref.read(bookRepositoryProvider).deleteBook(book.id);
+                        ref.invalidate(userBooksProvider(uid));
+                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('삭제되었습니다')));
+                      },
+                      child: Text('삭제', style: TextStyle(color: AppColors.error)),
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+          const SizedBox(height: 8),
+        ]),
+      ),
+    );
   }
 
   @override
@@ -40,10 +115,7 @@ class MyBookshelfScreen extends ConsumerWidget {
       appBar: AppBar(
         title: const Text('내 책장'),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.add),
-            onPressed: () => context.push(AppRoutes.bookRegister),
-          ),
+          IconButton(icon: const Icon(Icons.add), onPressed: () => context.push(AppRoutes.bookRegister)),
         ],
       ),
       body: booksAsync.when(
@@ -58,11 +130,7 @@ class MyBookshelfScreen extends ConsumerWidget {
               const SizedBox(height: 8),
               Text('첫 번째 책을 등록해보세요!', style: AppTypography.bodySmall),
               const SizedBox(height: 16),
-              ElevatedButton.icon(
-                onPressed: () => context.go(AppRoutes.bookRegister),
-                icon: const Icon(Icons.add),
-                label: const Text('책 등록하기'),
-              ),
+              ElevatedButton.icon(onPressed: () => context.go(AppRoutes.bookRegister), icon: const Icon(Icons.add), label: const Text('책 등록하기')),
             ]));
           }
           return RefreshIndicator(
@@ -77,6 +145,7 @@ class MyBookshelfScreen extends ConsumerWidget {
                   child: InkWell(
                     borderRadius: BorderRadius.circular(AppDimensions.radiusMD),
                     onTap: () => context.push(AppRoutes.bookDetailPath(book.id)),
+                    onLongPress: () => _showManageSheet(context, ref, book, uid),
                     child: Padding(
                       padding: const EdgeInsets.all(12),
                       child: Row(children: [
@@ -86,12 +155,9 @@ class MyBookshelfScreen extends ConsumerWidget {
                           child: SizedBox(
                             width: 55, height: 75,
                             child: book.coverImageUrl != null && book.coverImageUrl!.isNotEmpty
-                                ? CachedNetworkImage(
-                                    imageUrl: book.coverImageUrl!,
-                                    fit: BoxFit.cover,
+                                ? CachedNetworkImage(imageUrl: book.coverImageUrl!, fit: BoxFit.cover,
                                     placeholder: (_, __) => Container(color: AppColors.divider, child: const Icon(Icons.book, size: 20, color: AppColors.textSecondary)),
-                                    errorWidget: (_, __, ___) => Container(color: AppColors.divider, child: const Icon(Icons.book, size: 20, color: AppColors.textSecondary)),
-                                  )
+                                    errorWidget: (_, __, ___) => Container(color: AppColors.divider, child: const Icon(Icons.book, size: 20, color: AppColors.textSecondary)))
                                 : Container(color: AppColors.divider, child: const Icon(Icons.book, size: 20, color: AppColors.textSecondary)),
                           ),
                         ),
@@ -102,81 +168,17 @@ class MyBookshelfScreen extends ConsumerWidget {
                           const SizedBox(height: 4),
                           Text(book.author, style: AppTypography.bodySmall, maxLines: 1, overflow: TextOverflow.ellipsis),
                           const SizedBox(height: 8),
-                          // 상태 배지
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: _statusColor(book.status).withOpacity(0.1),
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                            child: Text(
-                              _statusLabel(book.status),
-                              style: AppTypography.caption.copyWith(
-                                color: _statusColor(book.status),
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
+                            decoration: BoxDecoration(color: _statusColor(book.status).withOpacity(0.1), borderRadius: BorderRadius.circular(4)),
+                            child: Text(_statusLabel(book.status), style: AppTypography.caption.copyWith(color: _statusColor(book.status), fontWeight: FontWeight.w600)),
                           ),
                         ])),
-                        // 메뉴
-                        PopupMenuButton(itemBuilder: (_) => [
-                          const PopupMenuItem(value: 'edit', child: Row(children: [
-                            Icon(Icons.edit, size: 18), SizedBox(width: 8), Text('수정'),
-                          ])),
-                          PopupMenuItem(value: 'hide', child: Row(children: [
-                            Icon(book.status == 'hidden' ? Icons.visibility : Icons.visibility_off, size: 18),
-                            const SizedBox(width: 8),
-                            Text(book.status == 'hidden' ? '게시하기' : '가리기'),
-                          ])),
-                          const PopupMenuItem(value: 'bump', child: Row(children: [
-                            Icon(Icons.arrow_upward, size: 18), SizedBox(width: 8), Text('끌어올리기'),
-                          ])),
-                          const PopupMenuItem(value: 'delete', child: Row(children: [
-                            Icon(Icons.delete_outline, size: 18, color: AppColors.error),
-                            SizedBox(width: 8),
-                            Text('삭제', style: TextStyle(color: AppColors.error)),
-                          ])),
-                        ], onSelected: (v) {
-                          final repo = ref.read(bookRepositoryProvider);
-                          if (v == 'edit') {
-                            context.push(AppRoutes.bookEditPath(book.id));
-                          } else if (v == 'hide') {
-                            final willHide = book.status != 'hidden';
-                            repo.toggleHideBook(book.id, willHide);
-                            ref.invalidate(userBooksProvider(uid));
-                            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                              content: Text(willHide ? '게시물을 가렸습니다' : '게시물을 다시 게시합니다'),
-                            ));
-                          } else if (v == 'bump') {
-                            repo.bumpBook(book.id);
-                            ref.invalidate(userBooksProvider(uid));
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('끌어올리기 완료! 목록 상단에 노출됩니다'), backgroundColor: AppColors.success),
-                            );
-                          } else if (v == 'delete') {
-                            showDialog(
-                              context: context,
-                              builder: (ctx) => AlertDialog(
-                                title: const Text('책 삭제'),
-                                content: Text('"${book.title}"을(를) 삭제하시겠습니까?\n삭제 후 복구할 수 없습니다.'),
-                                actions: [
-                                  TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('취소')),
-                                  TextButton(
-                                    onPressed: () {
-                                      Navigator.pop(ctx);
-                                      repo.deleteBook(book.id);
-                                      ref.invalidate(userBooksProvider(uid));
-                                      ScaffoldMessenger.of(context).showSnackBar(
-                                        const SnackBar(content: Text('삭제되었습니다')),
-                                      );
-                                    },
-                                    child: Text('삭제', style: TextStyle(color: AppColors.error)),
-                                  ),
-                                ],
-                              ),
-                            );
-                          }
-                        }),
+                        // 점 3개 메뉴 버튼
+                        IconButton(
+                          icon: const Icon(Icons.more_vert, color: AppColors.textSecondary),
+                          onPressed: () => _showManageSheet(context, ref, book, uid),
+                        ),
                       ]),
                     ),
                   ),
