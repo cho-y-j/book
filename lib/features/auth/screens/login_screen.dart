@@ -6,6 +6,7 @@ import '../../../app/theme/app_colors.dart';
 import '../../../app/theme/app_typography.dart';
 import '../../../app/theme/app_dimensions.dart';
 import '../../../core/utils/validators.dart';
+import '../../../core/services/storage_service.dart';
 import '../../../providers/auth_providers.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
@@ -19,7 +20,22 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _isLoading = false;
+  bool _autoLogin = true;
   String? _error;
+  final _storage = StorageService();
+
+  @override
+  void initState() {
+    super.initState();
+    _loadAutoLoginPref();
+  }
+
+  Future<void> _loadAutoLoginPref() async {
+    await _storage.init();
+    if (mounted) {
+      setState(() => _autoLogin = _storage.autoLogin);
+    }
+  }
 
   @override
   void dispose() {
@@ -76,7 +92,38 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     validator: Validators.validatePassword,
                     obscureText: true,
                   ),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 8),
+
+                  // 자동 로그인 체크박스
+                  Row(children: [
+                    SizedBox(
+                      height: 24, width: 24,
+                      child: Checkbox(
+                        value: _autoLogin,
+                        onChanged: (v) async {
+                          setState(() => _autoLogin = v ?? true);
+                          await _storage.setAutoLogin(_autoLogin);
+                        },
+                        activeColor: AppColors.primary,
+                        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    GestureDetector(
+                      onTap: () async {
+                        setState(() => _autoLogin = !_autoLogin);
+                        await _storage.setAutoLogin(_autoLogin);
+                      },
+                      child: Text('자동 로그인', style: AppTypography.bodySmall),
+                    ),
+                    const Spacer(),
+                    TextButton(
+                      onPressed: _handleForgotPassword,
+                      child: Text('비밀번호 찾기', style: AppTypography.bodySmall.copyWith(color: AppColors.primary)),
+                    ),
+                  ]),
+
+                  const SizedBox(height: 16),
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(
@@ -87,14 +134,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     ),
                   ),
                 ]),
-              ),
-              const SizedBox(height: 16),
-              Align(
-                alignment: Alignment.centerRight,
-                child: TextButton(
-                  onPressed: _handleForgotPassword,
-                  child: Text('비밀번호 찾기', style: AppTypography.bodySmall.copyWith(color: AppColors.primary)),
-                ),
               ),
               const SizedBox(height: 16),
               Row(children: [
@@ -125,6 +164,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     setState(() { _isLoading = true; _error = null; });
 
     try {
+      // 자동 로그인 설정 저장
+      await _storage.setAutoLogin(_autoLogin);
+
       final authRepo = ref.read(authRepositoryProvider);
       await authRepo.signInWithEmail(
         _emailController.text.trim(),
@@ -166,6 +208,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     if (msg.contains('wrong-password')) return '비밀번호가 틀렸습니다';
     if (msg.contains('invalid-email')) return '유효하지 않은 이메일입니다';
     if (msg.contains('too-many-requests')) return '너무 많은 시도입니다. 잠시 후 다시 시도하세요';
+    if (msg.contains('INVALID_LOGIN_CREDENTIALS')) return '이메일 또는 비밀번호가 틀렸습니다';
     return '로그인에 실패했습니다. 다시 시도해주세요';
   }
 }

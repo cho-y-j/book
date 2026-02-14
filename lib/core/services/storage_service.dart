@@ -12,6 +12,11 @@ class StorageService {
   Future<void> setHasSeenOnboarding(bool value) =>
       _prefs.setBool('hasSeenOnboarding', value);
 
+  // Auto Login
+  bool get autoLogin => _prefs.getBool('autoLogin') ?? true;
+  Future<void> setAutoLogin(bool value) =>
+      _prefs.setBool('autoLogin', value);
+
   // Notification Sound
   String get notificationSound =>
       _prefs.getString('notificationSound') ?? 'notification_default.mp3';

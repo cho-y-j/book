@@ -5,13 +5,32 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../../../app/routes.dart';
 import '../../../app/theme/app_colors.dart';
 import '../../../app/theme/app_typography.dart';
+import '../../../core/services/storage_service.dart';
 import '../../../providers/auth_providers.dart';
 import '../../../providers/user_providers.dart';
 
-class SettingsScreen extends ConsumerWidget {
+class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
+  @override
+  ConsumerState<SettingsScreen> createState() => _SettingsScreenState();
+}
 
-  void _showLocationDialog(BuildContext context, WidgetRef ref) {
+class _SettingsScreenState extends ConsumerState<SettingsScreen> {
+  final _storage = StorageService();
+  bool _autoLogin = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadPrefs();
+  }
+
+  Future<void> _loadPrefs() async {
+    await _storage.init();
+    if (mounted) setState(() => _autoLogin = _storage.autoLogin);
+  }
+
+  void _showLocationDialog() {
     final ctrl = TextEditingController();
     showDialog(
       context: context,
@@ -32,7 +51,7 @@ class SettingsScreen extends ConsumerWidget {
                 ref.invalidate(currentUserProfileProvider);
               }
               if (ctx.mounted) Navigator.pop(ctx);
-              if (context.mounted) {
+              if (mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('지역이 설정되었습니다')));
               }
             },
@@ -43,7 +62,7 @@ class SettingsScreen extends ConsumerWidget {
     );
   }
 
-  void _showBlockedUsers(BuildContext context) {
+  void _showBlockedUsers() {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -54,7 +73,7 @@ class SettingsScreen extends ConsumerWidget {
     );
   }
 
-  void _showTerms(BuildContext context) {
+  void _showTerms() {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -73,7 +92,7 @@ class SettingsScreen extends ConsumerWidget {
     );
   }
 
-  void _showPrivacyPolicy(BuildContext context) {
+  void _showPrivacyPolicy() {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -92,7 +111,7 @@ class SettingsScreen extends ConsumerWidget {
     );
   }
 
-  void _showDeleteAccount(BuildContext context, WidgetRef ref) {
+  void _showDeleteAccount() {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -106,13 +125,13 @@ class SettingsScreen extends ConsumerWidget {
               try {
                 final user = FirebaseAuth.instance.currentUser;
                 if (user != null) {
-                  // Firestore 사용자 문서 삭제
                   await ref.read(userRepositoryProvider).updateUser(user.uid, {'status': 'deleted'});
                   await user.delete();
                 }
-                if (context.mounted) context.go(AppRoutes.login);
+                await _storage.setAutoLogin(false);
+                if (mounted) context.go(AppRoutes.login);
               } catch (e) {
-                if (context.mounted) {
+                if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(content: Text('탈퇴 실패: 재로그인 후 다시 시도해주세요\n$e'), backgroundColor: AppColors.error),
                   );
@@ -127,7 +146,7 @@ class SettingsScreen extends ConsumerWidget {
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final userAsync = ref.watch(currentUserProfileProvider);
     final location = userAsync.value?.primaryLocation ?? '미설정';
 
@@ -135,6 +154,17 @@ class SettingsScreen extends ConsumerWidget {
       appBar: AppBar(title: const Text('설정')),
       body: ListView(children: [
         const _SectionHeader(title: '계정'),
+        SwitchListTile(
+          secondary: const Icon(Icons.login, color: AppColors.textSecondary),
+          title: const Text('자동 로그인'),
+          subtitle: Text(_autoLogin ? '앱 시작 시 자동으로 로그인됩니다' : '매번 로그인이 필요합니다'),
+          value: _autoLogin,
+          activeColor: AppColors.primary,
+          onChanged: (v) async {
+            setState(() => _autoLogin = v);
+            await _storage.setAutoLogin(v);
+          },
+        ),
         ListTile(
           leading: const Icon(Icons.notifications_outlined, color: AppColors.textSecondary),
           title: const Text('알림 설정'),
@@ -146,26 +176,26 @@ class SettingsScreen extends ConsumerWidget {
           title: const Text('지역 설정'),
           subtitle: Text(location),
           trailing: const Icon(Icons.chevron_right, color: AppColors.textSecondary),
-          onTap: () => _showLocationDialog(context, ref),
+          onTap: _showLocationDialog,
         ),
         ListTile(
           leading: const Icon(Icons.block_outlined, color: AppColors.textSecondary),
           title: const Text('차단 사용자 관리'),
           trailing: const Icon(Icons.chevron_right, color: AppColors.textSecondary),
-          onTap: () => _showBlockedUsers(context),
+          onTap: _showBlockedUsers,
         ),
         const _SectionHeader(title: '정보'),
         ListTile(
           leading: const Icon(Icons.description_outlined, color: AppColors.textSecondary),
           title: const Text('이용약관'),
           trailing: const Icon(Icons.chevron_right, color: AppColors.textSecondary),
-          onTap: () => _showTerms(context),
+          onTap: _showTerms,
         ),
         ListTile(
           leading: const Icon(Icons.privacy_tip_outlined, color: AppColors.textSecondary),
           title: const Text('개인정보처리방침'),
           trailing: const Icon(Icons.chevron_right, color: AppColors.textSecondary),
-          onTap: () => _showPrivacyPolicy(context),
+          onTap: _showPrivacyPolicy,
         ),
         ListTile(
           leading: const Icon(Icons.source_outlined, color: AppColors.textSecondary),
@@ -194,16 +224,16 @@ class SettingsScreen extends ConsumerWidget {
                 ],
               ),
             );
-            if (confirmed == true && context.mounted) {
+            if (confirmed == true && mounted) {
               await ref.read(authRepositoryProvider).signOut();
-              if (context.mounted) context.go(AppRoutes.login);
+              if (mounted) context.go(AppRoutes.login);
             }
           },
         ),
         ListTile(
           leading: Icon(Icons.delete_forever, color: AppColors.error),
           title: Text('회원탈퇴', style: TextStyle(color: AppColors.error)),
-          onTap: () => _showDeleteAccount(context, ref),
+          onTap: _showDeleteAccount,
         ),
         const SizedBox(height: 32),
       ]),

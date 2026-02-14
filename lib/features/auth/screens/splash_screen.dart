@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../../../app/routes.dart';
 import '../../../app/theme/app_colors.dart';
-import '../../../providers/auth_providers.dart';
 import '../../../core/services/storage_service.dart';
 
 class SplashScreen extends ConsumerStatefulWidget {
@@ -20,20 +20,30 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
   }
 
   Future<void> _navigateNext() async {
-    await Future.delayed(const Duration(seconds: 2));
+    // 최소 스플래시 표시 시간 + Firebase Auth 초기화 대기를 병렬 실행
+    final minDelay = Future.delayed(const Duration(milliseconds: 1500));
+
+    // Firebase Auth의 첫 번째 authStateChanges 이벤트를 기다림
+    // 이 이벤트가 와야 로그인 상태를 정확히 알 수 있음
+    final authUser = await FirebaseAuth.instance.authStateChanges().first;
+
+    await minDelay; // 최소 스플래시 시간 보장
     if (!mounted) return;
 
-    final authState = ref.read(authStateProvider);
-    final user = authState.value;
+    final storage = StorageService();
+    await storage.init();
+    if (!mounted) return;
 
-    if (user != null) {
+    if (authUser != null && storage.autoLogin) {
+      // 자동 로그인 ON + 기존 세션 존재 → 홈으로
       context.go(AppRoutes.home);
     } else {
-      final storage = StorageService();
-      await storage.init();
-      final hasSeenOnboarding = storage.hasSeenOnboarding;
-      if (!mounted) return;
-      context.go(hasSeenOnboarding ? AppRoutes.login : AppRoutes.onboarding);
+      // 자동 로그인 OFF이거나 세션 없음
+      if (authUser != null && !storage.autoLogin) {
+        // 자동 로그인 OFF인데 세션이 남아있으면 로그아웃 처리
+        await FirebaseAuth.instance.signOut();
+      }
+      context.go(storage.hasSeenOnboarding ? AppRoutes.login : AppRoutes.onboarding);
     }
   }
 
@@ -50,6 +60,8 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
             Text('책다리', style: TextStyle(fontSize: 36, fontWeight: FontWeight.w700, color: Colors.white)),
             SizedBox(height: 8),
             Text('BookBridge', style: TextStyle(fontSize: 16, color: Colors.white70)),
+            SizedBox(height: 32),
+            SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white70)),
           ],
         ),
       ),
