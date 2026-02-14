@@ -102,6 +102,40 @@ class BookRepository {
     });
   }
 
+  /// 판매 목록 실시간 스트림
+  Stream<List<BookModel>> watchSaleListings({String? genre, int limit = 20}) {
+    Query<Map<String, dynamic>> query = _booksRef
+        .where('status', isEqualTo: 'available')
+        .where('listingType', whereIn: ['sale', 'both'])
+        .orderBy('createdAt', descending: true)
+        .limit(limit);
+
+    if (genre != null && genre != '전체') {
+      query = query.where('genre', isEqualTo: genre);
+    }
+
+    return query.snapshots().map(
+      (snap) => snap.docs.map((doc) => BookModel.fromFirestore(doc)).toList(),
+    );
+  }
+
+  /// 교환 목록 실시간 스트림
+  Stream<List<BookModel>> watchExchangeListings({String? genre, int limit = 20}) {
+    Query<Map<String, dynamic>> query = _booksRef
+        .where('status', isEqualTo: 'available')
+        .where('listingType', whereIn: ['exchange', 'both'])
+        .orderBy('createdAt', descending: true)
+        .limit(limit);
+
+    if (genre != null && genre != '전체') {
+      query = query.where('genre', isEqualTo: genre);
+    }
+
+    return query.snapshots().map(
+      (snap) => snap.docs.map((doc) => BookModel.fromFirestore(doc)).toList(),
+    );
+  }
+
   Stream<List<BookModel>> watchUserBooks(String uid) {
     return _booksRef
         .where('ownerUid', isEqualTo: uid)

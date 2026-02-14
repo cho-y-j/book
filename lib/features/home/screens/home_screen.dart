@@ -18,11 +18,17 @@ class HomeScreen extends ConsumerStatefulWidget {
 
 class _HomeScreenState extends ConsumerState<HomeScreen> {
   String? _selectedGenre;
+  String _listingFilter = 'all'; // 'all' | 'exchange' | 'sale'
   SortOption _sortOption = SortOption.latest;
 
   @override
   Widget build(BuildContext context) {
-    final booksAsync = ref.watch(availableBooksProvider(_selectedGenre));
+    // 필터에 따라 다른 프로바이더 사용
+    final booksAsync = _listingFilter == 'sale'
+        ? ref.watch(saleListingsProvider(_selectedGenre))
+        : _listingFilter == 'exchange'
+            ? ref.watch(exchangeListingsProvider(_selectedGenre))
+            : ref.watch(availableBooksProvider(_selectedGenre));
 
     return Scaffold(
       appBar: AppBar(
@@ -32,6 +38,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         ],
       ),
       body: Column(children: [
+        // 거래 유형 필터 (전체/교환/판매)
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: AppDimensions.paddingMD, vertical: 4),
+          child: Row(children: [
+            _FilterTab(label: '전체', selected: _listingFilter == 'all', onTap: () => setState(() => _listingFilter = 'all')),
+            const SizedBox(width: 8),
+            _FilterTab(label: '교환', selected: _listingFilter == 'exchange', onTap: () => setState(() => _listingFilter = 'exchange')),
+            const SizedBox(width: 8),
+            _FilterTab(label: '판매', selected: _listingFilter == 'sale', onTap: () => setState(() => _listingFilter = 'sale')),
+          ]),
+        ),
         // Genre filter chips
         SizedBox(height: 48, child: ListView(scrollDirection: Axis.horizontal, padding: const EdgeInsets.symmetric(horizontal: AppDimensions.paddingMD),
           children: [null, ...BookGenre.values.where((g) => g != BookGenre.all)].map((genre) {
@@ -78,7 +95,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               ]));
             }
             return RefreshIndicator(
-              onRefresh: () async => ref.invalidate(availableBooksProvider(_selectedGenre)),
+              onRefresh: () async {
+                ref.invalidate(availableBooksProvider(_selectedGenre));
+                ref.invalidate(saleListingsProvider(_selectedGenre));
+                ref.invalidate(exchangeListingsProvider(_selectedGenre));
+              },
               child: ListView.builder(
                 padding: const EdgeInsets.all(AppDimensions.paddingMD),
                 itemCount: books.length,
@@ -91,6 +112,32 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           },
         )),
       ]),
+    );
+  }
+}
+
+class _FilterTab extends StatelessWidget {
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+  const _FilterTab({required this.label, required this.selected, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+        decoration: BoxDecoration(
+          color: selected ? AppColors.primary : Colors.transparent,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: selected ? AppColors.primary : AppColors.divider),
+        ),
+        child: Text(label, style: AppTypography.bodySmall.copyWith(
+          color: selected ? Colors.white : AppColors.textSecondary,
+          fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
+        )),
+      ),
     );
   }
 }

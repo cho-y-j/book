@@ -14,6 +14,7 @@ enum BookStatus {
   available('교환가능'),
   reserved('예약중'),
   exchanged('교환완료'),
+  sold('판매완료'),
   hidden('숨김');
 
   const BookStatus(this.label);
@@ -76,6 +77,9 @@ enum NotificationType {
   relay,
   levelUp,
   badge,
+  purchaseRequest,
+  purchaseAccepted,
+  purchaseCompleted,
 }
 
 /// 신고 사유
@@ -105,6 +109,36 @@ enum RelayExchangeStatus {
 
 /// 사용자 상태
 enum UserStatus { active, suspended, deleted }
+
+/// 사용자 역할
+enum UserRole {
+  user('일반'),
+  dealer('중고업자'),
+  admin('관리자');
+
+  const UserRole(this.label);
+  final String label;
+}
+
+/// 등록 유형 (교환/판매)
+enum ListingType {
+  exchange('교환'),
+  sale('판매'),
+  both('교환+판매');
+
+  const ListingType(this.label);
+  final String label;
+}
+
+/// 업자 승인 상태
+enum DealerStatus {
+  pending('승인대기'),
+  approved('승인됨'),
+  suspended('정지');
+
+  const DealerStatus(this.label);
+  final String label;
+}
 
 /// 교환 난이도
 enum ExchangeDifficulty {

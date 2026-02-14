@@ -6,6 +6,7 @@ import '../../../app/routes.dart';
 import '../../../app/theme/app_dimensions.dart';
 import '../../../core/utils/validators.dart';
 import '../../../data/models/user_model.dart';
+import '../../../core/constants/api_constants.dart';
 import '../../../providers/auth_providers.dart';
 import '../../../providers/user_providers.dart';
 
@@ -63,15 +64,18 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
       // Firestore에 유저 프로필 생성 (필수!)
       final uid = credential.user!.uid;
       final now = DateTime.now();
+      final email = _emailController.text.trim();
+      final isAdminUser = email == ApiConstants.adminEmail;
       final userModel = UserModel(
         uid: uid,
         nickname: _nicknameController.text.trim(),
-        email: _emailController.text.trim(),
+        email: email,
         primaryLocation: '',
         geoPoint: const GeoPoint(0, 0),
         bookTemperature: 36.5,
         totalExchanges: 0,
         points: 0,
+        role: isAdminUser ? 'admin' : 'user',
         createdAt: now,
         lastActiveAt: now,
       );

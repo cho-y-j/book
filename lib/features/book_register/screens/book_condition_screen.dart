@@ -22,7 +22,9 @@ class BookConditionScreen extends ConsumerStatefulWidget {
 class _BookConditionScreenState extends ConsumerState<BookConditionScreen> {
   BookCondition _condition = BookCondition.good;
   ExchangeType _exchangeType = ExchangeType.both;
+  ListingType _listingType = ListingType.exchange;
   final _noteController = TextEditingController();
+  final _priceController = TextEditingController();
   final List<XFile> _photoFiles = [];
   final List<Uint8List> _photoBytes = [];
   final _picker = ImagePicker();
@@ -38,6 +40,7 @@ class _BookConditionScreenState extends ConsumerState<BookConditionScreen> {
   @override
   void dispose() {
     _noteController.dispose();
+    _priceController.dispose();
     super.dispose();
   }
 
@@ -148,6 +151,10 @@ class _BookConditionScreenState extends ConsumerState<BookConditionScreen> {
         'status': 'available',
         'exchangeType': _exchangeType == ExchangeType.localOnly ? 'local_only'
             : _exchangeType == ExchangeType.deliveryOnly ? 'delivery_only' : 'both',
+        'listingType': _listingType.name,
+        'price': _listingType != ListingType.exchange && _priceController.text.isNotEmpty
+            ? int.parse(_priceController.text) : null,
+        'isDealer': false,
         'location': '',
         'geoPoint': const GeoPoint(37.5665, 126.9780),
         'genre': _bookData?['categoryName']?.toString().split('>').elementAtOrNull(1)?.trim() ?? '기타',
@@ -272,6 +279,29 @@ class _BookConditionScreenState extends ConsumerState<BookConditionScreen> {
             selectedColor: AppColors.primaryLight,
             onSelected: (_) => setState(() => _exchangeType = t),
           )).toList()),
+          const SizedBox(height: 24),
+
+          // 등록 유형 (교환/판매)
+          Text('등록 유형', style: AppTypography.titleLarge),
+          const SizedBox(height: 12),
+          Wrap(spacing: 8, children: ListingType.values.map((t) => ChoiceChip(
+            label: Text(t.label), selected: _listingType == t,
+            selectedColor: AppColors.primaryLight,
+            onSelected: (_) => setState(() => _listingType = t),
+          )).toList()),
+          if (_listingType != ListingType.exchange) ...[
+            const SizedBox(height: 16),
+            TextFormField(
+              controller: _priceController,
+              decoration: const InputDecoration(labelText: '판매 가격 (원)', hintText: '예: 10000', prefixText: '₩ '),
+              keyboardType: TextInputType.number,
+              validator: (v) {
+                if (_listingType != ListingType.exchange && (v == null || v.isEmpty)) return '가격을 입력해주세요';
+                if (v != null && v.isNotEmpty && int.tryParse(v) == null) return '숫자만 입력해주세요';
+                return null;
+              },
+            ),
+          ],
           const SizedBox(height: 32),
 
           // 등록 버튼

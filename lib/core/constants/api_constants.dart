@@ -33,4 +33,9 @@ class ApiConstants {
   static const bookClubsCollection = 'book_clubs';
   static const reportsCollection = 'reports';
   static const relayExchangesCollection = 'relay_exchanges';
+  static const purchaseRequestsCollection = 'purchase_requests';
+  static const adminCollection = 'admin';
+
+  // Admin email
+  static const adminEmail = 'cho.y.j@gmail.com';
 }

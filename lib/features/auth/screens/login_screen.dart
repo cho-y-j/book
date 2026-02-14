@@ -8,6 +8,7 @@ import '../../../app/theme/app_typography.dart';
 import '../../../app/theme/app_dimensions.dart';
 import '../../../core/utils/validators.dart';
 import '../../../core/services/storage_service.dart';
+import '../../../core/constants/api_constants.dart';
 import '../../../data/models/user_model.dart';
 import '../../../providers/auth_providers.dart';
 import '../../../providers/user_providers.dart';
@@ -180,20 +181,25 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       final uid = credential.user!.uid;
       final userRepo = ref.read(userRepositoryProvider);
       final existingProfile = await userRepo.getUser(uid);
+      final email = credential.user!.email ?? '';
+      final isAdminUser = email == ApiConstants.adminEmail;
       if (existingProfile == null) {
         final now = DateTime.now();
         await userRepo.createUser(UserModel(
           uid: uid,
-          nickname: credential.user!.email?.split('@').first ?? '사용자',
-          email: credential.user!.email ?? '',
+          nickname: email.split('@').first,
+          email: email,
           primaryLocation: '',
           geoPoint: const GeoPoint(0, 0),
           bookTemperature: 36.5,
           totalExchanges: 0,
           points: 0,
+          role: isAdminUser ? 'admin' : 'user',
           createdAt: now,
           lastActiveAt: now,
         ));
+      } else if (isAdminUser && existingProfile.role != 'admin') {
+        await userRepo.updateUser(uid, {'role': 'admin'});
       }
 
       // Navigation handled by authStateProvider listener above

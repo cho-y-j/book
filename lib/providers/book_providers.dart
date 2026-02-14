@@ -25,6 +25,16 @@ final userBooksProvider = StreamProvider.family<List<BookModel>, String>((ref, u
   return ref.watch(bookRepositoryProvider).watchUserBooks(uid);
 });
 
+/// 판매 목록 스트림
+final saleListingsProvider = StreamProvider.family<List<BookModel>, String?>((ref, genre) {
+  return ref.watch(bookRepositoryProvider).watchSaleListings(genre: genre);
+});
+
+/// 교환 목록 스트림
+final exchangeListingsProvider = StreamProvider.family<List<BookModel>, String?>((ref, genre) {
+  return ref.watch(bookRepositoryProvider).watchExchangeListings(genre: genre);
+});
+
 final bookSearchProvider = FutureProvider.family<List<BookModel>, String>((ref, query) async {
   if (query.isEmpty) return [];
   return ref.watch(bookRepositoryProvider).searchBooks(query);

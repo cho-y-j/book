@@ -51,6 +51,18 @@ import '../features/stats/screens/my_stats_screen.dart';
 // Relay Exchange
 import '../features/relay_exchange/screens/relay_suggest_screen.dart';
 import '../features/relay_exchange/screens/relay_route_screen.dart';
+// Purchase
+import '../features/purchase/screens/purchase_request_screen.dart';
+import '../features/purchase/screens/incoming_purchase_requests_screen.dart';
+// Admin
+import '../features/admin/screens/admin_dashboard_screen.dart';
+import '../features/admin/screens/admin_user_list_screen.dart';
+import '../features/admin/screens/admin_user_detail_screen.dart';
+import '../features/admin/screens/admin_dealer_screen.dart';
+import '../features/admin/screens/admin_book_list_screen.dart';
+import '../features/admin/screens/admin_report_screen.dart';
+// Dealer
+import '../features/dealer/screens/dealer_request_screen.dart';
 
 class AppRoutes {
   AppRoutes._();
@@ -119,6 +131,21 @@ class AppRoutes {
   static const relaySuggest = '/relay-suggest';
   static const relayRoute = '/relay-route';
 
+  // Purchase
+  static const purchaseRequest = '/purchase-request/:bookId';
+  static const incomingPurchaseRequests = '/incoming-purchase-requests';
+
+  // Admin
+  static const adminDashboard = '/admin';
+  static const adminUsers = '/admin/users';
+  static const adminUserDetail = '/admin/user/:userId';
+  static const adminDealers = '/admin/dealers';
+  static const adminBooks = '/admin/books';
+  static const adminReports = '/admin/reports';
+
+  // Dealer
+  static const dealerRequest = '/dealer-request';
+
   /// Helper to build paths with parameters
   static String bookDetailPath(String bookId) => '/book/$bookId';
   static String bookEditPath(String bookId) => '/book-edit/$bookId';
@@ -130,6 +157,8 @@ class AppRoutes {
   static String userProfilePath(String userId) => '/user/$userId';
   static String writeReviewPath(String matchId) => '/write-review/$matchId';
   static String bookClubDetailPath(String clubId) => '/book-club/$clubId';
+  static String purchaseRequestPath(String bookId) => '/purchase-request/$bookId';
+  static String adminUserDetailPath(String userId) => '/admin/user/$userId';
 }
 
 final appRouter = GoRouter(
@@ -203,6 +232,21 @@ final appRouter = GoRouter(
     // === Relay Exchange ===
     GoRoute(path: AppRoutes.relaySuggest, builder: (_, __) => const RelaySuggestScreen()),
     GoRoute(path: AppRoutes.relayRoute, builder: (_, __) => const RelayRouteScreen()),
+
+    // === Purchase ===
+    GoRoute(path: AppRoutes.purchaseRequest, builder: (_, state) => PurchaseRequestScreen(bookId: state.pathParameters['bookId']!)),
+    GoRoute(path: AppRoutes.incomingPurchaseRequests, builder: (_, __) => const IncomingPurchaseRequestsScreen()),
+
+    // === Admin ===
+    GoRoute(path: AppRoutes.adminDashboard, builder: (_, __) => const AdminDashboardScreen()),
+    GoRoute(path: AppRoutes.adminUsers, builder: (_, __) => const AdminUserListScreen()),
+    GoRoute(path: AppRoutes.adminUserDetail, builder: (_, state) => AdminUserDetailScreen(userId: state.pathParameters['userId']!)),
+    GoRoute(path: AppRoutes.adminDealers, builder: (_, __) => const AdminDealerScreen()),
+    GoRoute(path: AppRoutes.adminBooks, builder: (_, __) => const AdminBookListScreen()),
+    GoRoute(path: AppRoutes.adminReports, builder: (_, __) => const AdminReportScreen()),
+
+    // === Dealer ===
+    GoRoute(path: AppRoutes.dealerRequest, builder: (_, __) => const DealerRequestScreen()),
   ],
 );
 

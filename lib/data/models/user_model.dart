@@ -19,6 +19,11 @@ class UserModel {
   final DateTime lastActiveAt;
   final bool isVerified;
   final String status;
+  // 역할 & 업자 관련
+  final String role; // 'user' | 'dealer' | 'admin'
+  final String? dealerStatus; // 'pending' | 'approved' | 'suspended'
+  final String? dealerName; // 업자 상호명
+  final int totalSales; // 판매 완료 수
 
   const UserModel({
     required this.uid,
@@ -39,6 +44,10 @@ class UserModel {
     required this.lastActiveAt,
     this.isVerified = false,
     this.status = 'active',
+    this.role = 'user',
+    this.dealerStatus,
+    this.dealerName,
+    this.totalSales = 0,
   });
 
   factory UserModel.fromFirestore(DocumentSnapshot doc) {
@@ -62,6 +71,10 @@ class UserModel {
       lastActiveAt: (data['lastActiveAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
       isVerified: data['isVerified'] ?? false,
       status: data['status'] ?? 'active',
+      role: data['role'] ?? 'user',
+      dealerStatus: data['dealerStatus'],
+      dealerName: data['dealerName'],
+      totalSales: data['totalSales'] ?? 0,
     );
   }
 
@@ -84,6 +97,10 @@ class UserModel {
       'lastActiveAt': Timestamp.fromDate(lastActiveAt),
       'isVerified': isVerified,
       'status': status,
+      'role': role,
+      'dealerStatus': dealerStatus,
+      'dealerName': dealerName,
+      'totalSales': totalSales,
     };
   }
 
@@ -102,6 +119,10 @@ class UserModel {
     DateTime? lastActiveAt,
     bool? isVerified,
     String? status,
+    String? role,
+    String? dealerStatus,
+    String? dealerName,
+    int? totalSales,
   }) {
     return UserModel(
       uid: uid,
@@ -122,6 +143,10 @@ class UserModel {
       lastActiveAt: lastActiveAt ?? this.lastActiveAt,
       isVerified: isVerified ?? this.isVerified,
       status: status ?? this.status,
+      role: role ?? this.role,
+      dealerStatus: dealerStatus ?? this.dealerStatus,
+      dealerName: dealerName ?? this.dealerName,
+      totalSales: totalSales ?? this.totalSales,
     );
   }
 }

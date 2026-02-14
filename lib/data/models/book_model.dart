@@ -10,8 +10,11 @@ class BookModel {
   final List<String> conditionPhotos;
   final String condition; // 'best' | 'good' | 'fair' | 'poor'
   final String? conditionNote;
-  final String status; // 'available' | 'reserved' | 'exchanged' | 'hidden'
+  final String status; // 'available' | 'reserved' | 'exchanged' | 'sold' | 'hidden'
   final String exchangeType; // 'local_only' | 'delivery_only' | 'both'
+  final String listingType; // 'exchange' | 'sale' | 'both'
+  final int? price; // 원 단위, 판매가 (교환만이면 null)
+  final bool isDealer; // 업자 등록 여부
   final String location;
   final GeoPoint geoPoint;
   final String genre;
@@ -34,6 +37,9 @@ class BookModel {
     this.conditionNote,
     this.status = 'available',
     this.exchangeType = 'both',
+    this.listingType = 'exchange',
+    this.price,
+    this.isDealer = false,
     required this.location,
     required this.geoPoint,
     required this.genre,
@@ -59,6 +65,9 @@ class BookModel {
       conditionNote: data['conditionNote'],
       status: data['status'] ?? 'available',
       exchangeType: data['exchangeType'] ?? 'both',
+      listingType: data['listingType'] ?? 'exchange',
+      price: data['price'],
+      isDealer: data['isDealer'] ?? false,
       location: data['location'] ?? '',
       geoPoint: data['geoPoint'] ?? const GeoPoint(0, 0),
       genre: data['genre'] ?? '기타',
@@ -83,6 +92,9 @@ class BookModel {
       'conditionNote': conditionNote,
       'status': status,
       'exchangeType': exchangeType,
+      'listingType': listingType,
+      'price': price,
+      'isDealer': isDealer,
       'location': location,
       'geoPoint': geoPoint,
       'genre': genre,
@@ -101,6 +113,8 @@ class BookModel {
     List<String>? conditionPhotos,
     String? status,
     String? exchangeType,
+    String? listingType,
+    int? price,
     String? location,
     GeoPoint? geoPoint,
     List<String>? tags,
@@ -117,6 +131,9 @@ class BookModel {
       conditionNote: conditionNote ?? this.conditionNote,
       status: status ?? this.status,
       exchangeType: exchangeType ?? this.exchangeType,
+      listingType: listingType ?? this.listingType,
+      price: price ?? this.price,
+      isDealer: isDealer,
       location: location ?? this.location,
       geoPoint: geoPoint ?? this.geoPoint,
       genre: genre,

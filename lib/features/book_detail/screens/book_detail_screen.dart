@@ -254,6 +254,18 @@ class BookDetailScreen extends ConsumerWidget {
                       ),
                       const SizedBox(height: AppDimensions.paddingSM),
 
+                      // Price display for sale listings
+                      if (book.price != null && (book.listingType == 'sale' || book.listingType == 'both')) ...[
+                        const SizedBox(height: AppDimensions.paddingSM),
+                        Text(
+                          '${Formatters.formatPrice(book.price!)}원',
+                          style: AppTypography.headlineSmall.copyWith(
+                            color: AppColors.primary,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+
                       // --- Title & Author ---
                       Text(book.title, style: AppTypography.headlineSmall),
                       const SizedBox(height: 4),
@@ -276,6 +288,7 @@ class BookDetailScreen extends ConsumerWidget {
                       // --- Book info rows ---
                       _InfoRow(label: '상태', value: Formatters.bookConditionLabel(book.condition)),
                       _InfoRow(label: '거래 방식', value: _exchangeTypeLabel(book.exchangeType)),
+                      _InfoRow(label: '등록 유형', value: book.listingType == 'sale' ? '판매' : book.listingType == 'both' ? '교환+판매' : '교환'),
                       _InfoRow(label: '지역', value: book.location),
                       _InfoRow(label: '장르', value: book.genre),
                       if (book.conditionNote != null && book.conditionNote!.isNotEmpty)
@@ -371,10 +384,31 @@ class BookDetailScreen extends ConsumerWidget {
               ? SafeArea(
                   child: Padding(
                     padding: const EdgeInsets.all(AppDimensions.paddingMD),
-                    child: ElevatedButton(
-                      onPressed: () => context.push(AppRoutes.exchangeRequestPath(book.id)),
-                      child: const Text('교환 요청하기'),
-                    ),
+                    child: book.listingType == 'both'
+                        ? Row(children: [
+                            Expanded(
+                              child: OutlinedButton(
+                                onPressed: () => context.push(AppRoutes.exchangeRequestPath(book.id)),
+                                child: const Text('교환 요청'),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: ElevatedButton(
+                                onPressed: () => context.push('/purchase-request/${book.id}'),
+                                child: const Text('구매 요청'),
+                              ),
+                            ),
+                          ])
+                        : book.listingType == 'sale'
+                            ? ElevatedButton(
+                                onPressed: () => context.push('/purchase-request/${book.id}'),
+                                child: const Text('구매 요청하기'),
+                              )
+                            : ElevatedButton(
+                                onPressed: () => context.push(AppRoutes.exchangeRequestPath(book.id)),
+                                child: const Text('교환 요청하기'),
+                              ),
                   ),
                 )
               : isOwner

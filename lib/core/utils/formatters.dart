@@ -49,6 +49,10 @@ class Formatters {
     return NumberFormat('#,###').format(number);
   }
 
+  static String formatPrice(int price) {
+    return NumberFormat('#,###').format(price);
+  }
+
   static String ecoImpact(int exchangeCount) {
     final paperSaved = exchangeCount * 200; // grams
     final co2Saved = (exchangeCount * 1.2).toStringAsFixed(1); // kg

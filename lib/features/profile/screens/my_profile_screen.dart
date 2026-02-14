@@ -6,6 +6,7 @@ import '../../../app/theme/app_colors.dart';
 import '../../../app/theme/app_typography.dart';
 import '../../../app/theme/app_dimensions.dart';
 import '../../../providers/user_providers.dart';
+import '../../../providers/admin_providers.dart';
 
 class MyProfileScreen extends ConsumerWidget {
   const MyProfileScreen({super.key});
@@ -53,10 +54,21 @@ class MyProfileScreen extends ConsumerWidget {
             _MenuTile(icon: Icons.bookmark_outline, title: '위시리스트', onTap: () => context.push(AppRoutes.wishlist)),
             _MenuTile(icon: Icons.swap_horiz, title: '교환 내역', onTap: () => context.push(AppRoutes.exchangeHistory)),
             _MenuTile(icon: Icons.star_outline, title: '받은 후기', onTap: () => context.push(AppRoutes.receivedReviews)),
-            _MenuTile(icon: Icons.mail_outline, title: '받은 요청', onTap: () => context.push(AppRoutes.incomingRequests)),
+            _MenuTile(icon: Icons.mail_outline, title: '받은 교환 요청', onTap: () => context.push(AppRoutes.incomingRequests)),
+            _MenuTile(icon: Icons.shopping_bag_outlined, title: '받은 구매 요청', onTap: () => context.push(AppRoutes.incomingPurchaseRequests)),
             _MenuTile(icon: Icons.groups_outlined, title: '동네 책모임', onTap: () => context.push(AppRoutes.bookClubList)),
             _MenuTile(icon: Icons.bar_chart, title: '나의 통계', onTap: () => context.push(AppRoutes.myStats)),
             _MenuTile(icon: Icons.emoji_events_outlined, title: '랭킹', onTap: () => context.push(AppRoutes.ranking)),
+            // 업자 메뉴
+            if (user?.role == 'user')
+              _MenuTile(icon: Icons.store_outlined, title: '업자 신청', onTap: () => context.push(AppRoutes.dealerRequest)),
+            if (user?.role == 'dealer' && user?.dealerStatus == 'pending')
+              _MenuTile(icon: Icons.hourglass_top, title: '업자 승인 대기 중', onTap: () {}),
+            if (user?.role == 'dealer' && user?.dealerStatus == 'approved')
+              _MenuTile(icon: Icons.store, title: '업자 (승인됨)', onTap: () {}),
+            // 관리자 메뉴 (admin만 표시)
+            if (ref.watch(isAdminProvider))
+              _MenuTile(icon: Icons.admin_panel_settings, title: '관리자 대시보드', onTap: () => context.push(AppRoutes.adminDashboard)),
           ]));
         },
       ),
