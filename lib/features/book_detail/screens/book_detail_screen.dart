@@ -6,6 +6,7 @@ import '../../../app/theme/app_colors.dart';
 import '../../../app/theme/app_typography.dart';
 import '../../../app/theme/app_dimensions.dart';
 import '../../../core/utils/formatters.dart';
+import '../../../data/models/book_model.dart';
 import '../../../data/models/user_model.dart';
 import '../../../data/models/wishlist_model.dart';
 import '../../../providers/book_providers.dart';
@@ -65,6 +66,80 @@ class BookDetailScreen extends ConsumerWidget {
     }
   }
 
+  void _showOwnerManageSheet(BuildContext context, WidgetRef ref, BookModel book) {
+    showModalBottomSheet(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Container(
+            width: 40, height: 4, margin: const EdgeInsets.symmetric(vertical: 12),
+            decoration: BoxDecoration(color: AppColors.divider, borderRadius: BorderRadius.circular(2)),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: Text(book.title, style: AppTypography.titleMedium, maxLines: 1, overflow: TextOverflow.ellipsis),
+          ),
+          const Divider(),
+          ListTile(
+            leading: const Icon(Icons.edit_outlined),
+            title: const Text('수정하기'),
+            onTap: () { Navigator.pop(ctx); context.push(AppRoutes.bookEditPath(book.id)); },
+          ),
+          ListTile(
+            leading: Icon(book.status == 'hidden' ? Icons.visibility : Icons.visibility_off_outlined),
+            title: Text(book.status == 'hidden' ? '게시하기' : '가리기'),
+            subtitle: Text(book.status == 'hidden' ? '다시 다른 사용자에게 보입니다' : '다른 사용자에게 보이지 않습니다'),
+            onTap: () {
+              Navigator.pop(ctx);
+              final willHide = book.status != 'hidden';
+              ref.read(bookRepositoryProvider).toggleHideBook(book.id, willHide);
+              ref.invalidate(bookDetailProvider(book.id));
+              ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(willHide ? '게시물을 가렸습니다' : '게시물을 다시 게시합니다')));
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.arrow_upward),
+            title: const Text('끌어올리기'),
+            subtitle: const Text('홈 피드 상단에 다시 노출됩니다'),
+            onTap: () {
+              Navigator.pop(ctx);
+              ref.read(bookRepositoryProvider).bumpBook(book.id);
+              ref.invalidate(bookDetailProvider(book.id));
+              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('끌어올리기 완료!'), backgroundColor: AppColors.success));
+            },
+          ),
+          ListTile(
+            leading: Icon(Icons.delete_outline, color: AppColors.error),
+            title: Text('삭제하기', style: TextStyle(color: AppColors.error)),
+            onTap: () {
+              Navigator.pop(ctx);
+              showDialog(
+                context: context,
+                builder: (dlg) => AlertDialog(
+                  title: const Text('책 삭제'),
+                  content: Text('"${book.title}"을(를) 삭제하시겠습니까?\n삭제 후 복구할 수 없습니다.'),
+                  actions: [
+                    TextButton(onPressed: () => Navigator.pop(dlg), child: const Text('취소')),
+                    TextButton(
+                      onPressed: () {
+                        Navigator.pop(dlg);
+                        ref.read(bookRepositoryProvider).deleteBook(book.id);
+                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('삭제되었습니다')));
+                        context.pop();
+                      },
+                      child: Text('삭제', style: TextStyle(color: AppColors.error)),
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+          const SizedBox(height: 8),
+        ]),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final bookAsync = ref.watch(bookDetailProvider(bookId));
@@ -106,39 +181,39 @@ class BookDetailScreen extends ConsumerWidget {
         return Scaffold(
           appBar: AppBar(
             actions: [
-              IconButton(
-                icon: Icon(
-                  isWishlisted ? Icons.favorite : Icons.favorite_border,
-                  color: isWishlisted ? AppColors.error : null,
+              if (!isOwner)
+                IconButton(
+                  icon: Icon(
+                    isWishlisted ? Icons.favorite : Icons.favorite_border,
+                    color: isWishlisted ? AppColors.error : null,
+                  ),
+                  onPressed: () async {
+                    if (currentUser == null) {
+                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('로그인이 필요합니다')));
+                      return;
+                    }
+                    final repo = ref.read(wishlistRepositoryProvider);
+                    if (isWishlisted) {
+                      await repo.removeByBookInfoId(currentUser.uid, book.bookInfoId);
+                    } else {
+                      await repo.addWishlist(WishlistModel(
+                        id: '',
+                        userUid: currentUser.uid,
+                        bookInfoId: book.bookInfoId,
+                        title: book.title,
+                        author: book.author,
+                        coverImageUrl: book.coverImageUrl,
+                        createdAt: DateTime.now(),
+                      ));
+                    }
+                    ref.invalidate(isWishlistedProvider(book.bookInfoId));
+                  },
                 ),
-                onPressed: () async {
-                  if (currentUser == null) {
-                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('로그인이 필요합니다')));
-                    return;
-                  }
-                  final repo = ref.read(wishlistRepositoryProvider);
-                  if (isWishlisted) {
-                    await repo.removeByBookInfoId(currentUser.uid, book.bookInfoId);
-                  } else {
-                    await repo.addWishlist(WishlistModel(
-                      id: '',
-                      userUid: currentUser.uid,
-                      bookInfoId: book.bookInfoId,
-                      title: book.title,
-                      author: book.author,
-                      coverImageUrl: book.coverImageUrl,
-                      createdAt: DateTime.now(),
-                    ));
-                  }
-                  ref.invalidate(isWishlistedProvider(book.bookInfoId));
-                },
-              ),
-              IconButton(
-                icon: const Icon(Icons.share),
-                onPressed: () {
-                  // TODO: implement share
-                },
-              ),
+              if (isOwner)
+                IconButton(
+                  icon: const Icon(Icons.more_vert),
+                  onPressed: () => _showOwnerManageSheet(context, ref, book),
+                ),
             ],
           ),
           body: SingleChildScrollView(
@@ -306,10 +381,34 @@ class BookDetailScreen extends ConsumerWidget {
                   ? SafeArea(
                       child: Padding(
                         padding: const EdgeInsets.all(AppDimensions.paddingMD),
-                        child: OutlinedButton(
-                          onPressed: () => context.push(AppRoutes.bookEditPath(book.id)),
-                          child: const Text('내 책 수정하기'),
-                        ),
+                        child: Row(children: [
+                          Expanded(
+                            child: OutlinedButton.icon(
+                              onPressed: () => context.push(AppRoutes.bookEditPath(book.id)),
+                              icon: const Icon(Icons.edit_outlined, size: 18),
+                              label: const Text('수정'),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: OutlinedButton.icon(
+                              onPressed: () {
+                                ref.read(bookRepositoryProvider).bumpBook(book.id);
+                                ref.invalidate(bookDetailProvider(book.id));
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(content: Text('끌어올리기 완료!'), backgroundColor: AppColors.success),
+                                );
+                              },
+                              icon: const Icon(Icons.arrow_upward, size: 18),
+                              label: const Text('끌어올리기'),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          IconButton(
+                            icon: const Icon(Icons.more_horiz),
+                            onPressed: () => _showOwnerManageSheet(context, ref, book),
+                          ),
+                        ]),
                       ),
                     )
                   : null,

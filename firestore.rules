@@ -22,7 +22,8 @@ service cloud.firestore {
 
     function isNotSuspended() {
       return isAuthenticated() &&
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.status != 'suspended';
+        (!exists(/databases/$(database)/documents/users/$(request.auth.uid)) ||
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.status != 'suspended');
     }
 
     // ===== Users =====
@@ -35,7 +36,6 @@ service cloud.firestore {
         request.resource.data.points == 0;
       allow update: if isOwner(userId) &&
         // Cannot modify critical fields directly
-        request.resource.data.uid == resource.data.uid &&
         request.resource.data.email == resource.data.email &&
         request.resource.data.createdAt == resource.data.createdAt;
       allow delete: if false; // Admin only via Cloud Functions

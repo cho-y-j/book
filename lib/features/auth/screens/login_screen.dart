@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -7,7 +8,9 @@ import '../../../app/theme/app_typography.dart';
 import '../../../app/theme/app_dimensions.dart';
 import '../../../core/utils/validators.dart';
 import '../../../core/services/storage_service.dart';
+import '../../../data/models/user_model.dart';
 import '../../../providers/auth_providers.dart';
+import '../../../providers/user_providers.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -168,10 +171,31 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       await _storage.setAutoLogin(_autoLogin);
 
       final authRepo = ref.read(authRepositoryProvider);
-      await authRepo.signInWithEmail(
+      final credential = await authRepo.signInWithEmail(
         _emailController.text.trim(),
         _passwordController.text,
       );
+
+      // 기존 유저 중 Firestore 프로필이 없는 경우 자동 생성
+      final uid = credential.user!.uid;
+      final userRepo = ref.read(userRepositoryProvider);
+      final existingProfile = await userRepo.getUser(uid);
+      if (existingProfile == null) {
+        final now = DateTime.now();
+        await userRepo.createUser(UserModel(
+          uid: uid,
+          nickname: credential.user!.email?.split('@').first ?? '사용자',
+          email: credential.user!.email ?? '',
+          primaryLocation: '',
+          geoPoint: const GeoPoint(0, 0),
+          bookTemperature: 36.5,
+          totalExchanges: 0,
+          points: 0,
+          createdAt: now,
+          lastActiveAt: now,
+        ));
+      }
+
       // Navigation handled by authStateProvider listener above
     } catch (e) {
       if (mounted) {

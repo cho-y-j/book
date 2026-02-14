@@ -1,10 +1,13 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../app/routes.dart';
 import '../../../app/theme/app_dimensions.dart';
 import '../../../core/utils/validators.dart';
+import '../../../data/models/user_model.dart';
 import '../../../providers/auth_providers.dart';
+import '../../../providers/user_providers.dart';
 
 class SignupScreen extends ConsumerStatefulWidget {
   const SignupScreen({super.key});
@@ -25,10 +28,6 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
 
   @override
   Widget build(BuildContext context) {
-    ref.listen(authStateProvider, (prev, next) {
-      if (next.value != null) context.go(AppRoutes.home);
-    });
-
     return Scaffold(
       appBar: AppBar(title: const Text('회원가입')),
       body: SingleChildScrollView(
@@ -59,11 +58,35 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
     setState(() { _isLoading = true; _error = null; });
     try {
       final authRepo = ref.read(authRepositoryProvider);
-      await authRepo.signUpWithEmail(_emailController.text.trim(), _passwordController.text);
-      // After signup, create user profile in Firestore
-      // Navigation handled by authStateProvider listener
+      final credential = await authRepo.signUpWithEmail(_emailController.text.trim(), _passwordController.text);
+
+      // Firestore에 유저 프로필 생성 (필수!)
+      final uid = credential.user!.uid;
+      final now = DateTime.now();
+      final userModel = UserModel(
+        uid: uid,
+        nickname: _nicknameController.text.trim(),
+        email: _emailController.text.trim(),
+        primaryLocation: '',
+        geoPoint: const GeoPoint(0, 0),
+        bookTemperature: 36.5,
+        totalExchanges: 0,
+        points: 0,
+        createdAt: now,
+        lastActiveAt: now,
+      );
+      await ref.read(userRepositoryProvider).createUser(userModel);
+
+      if (mounted) context.go(AppRoutes.home);
     } catch (e) {
-      if (mounted) setState(() { _isLoading = false; _error = e.toString().contains('email-already-in-use') ? '이미 사용중인 이메일입니다' : '회원가입에 실패했습니다'; });
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _error = e.toString().contains('email-already-in-use')
+              ? '이미 사용중인 이메일입니다'
+              : '회원가입에 실패했습니다: ${e.toString().split(']').last.trim()}';
+        });
+      }
     }
   }
 }
