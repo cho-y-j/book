@@ -109,4 +109,23 @@ class BookRepository {
         .snapshots()
         .map((snap) => snap.docs.map((d) => BookModel.fromFirestore(d)).toList());
   }
+
+  /// 홈 피드 실시간 스트림
+  Stream<List<BookModel>> watchAvailableBooks({
+    String? genre,
+    int limit = 20,
+  }) {
+    Query<Map<String, dynamic>> query = _booksRef
+        .where('status', isEqualTo: 'available')
+        .orderBy('createdAt', descending: true)
+        .limit(limit);
+
+    if (genre != null && genre != '전체') {
+      query = query.where('genre', isEqualTo: genre);
+    }
+
+    return query.snapshots().map(
+      (snap) => snap.docs.map((doc) => BookModel.fromFirestore(doc)).toList(),
+    );
+  }
 }

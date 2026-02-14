@@ -11,16 +11,18 @@ final bookInfoRepositoryProvider = Provider<BookInfoRepository>((ref) {
   return BookInfoRepository();
 });
 
-final availableBooksProvider = FutureProvider.family<List<BookModel>, String?>((ref, genre) async {
-  return ref.watch(bookRepositoryProvider).getAvailableBooks(genre: genre);
+/// 홈 피드 - 실시간 스트림 (책 등록 시 즉시 반영)
+final availableBooksProvider = StreamProvider.family<List<BookModel>, String?>((ref, genre) {
+  return ref.watch(bookRepositoryProvider).watchAvailableBooks(genre: genre);
 });
 
 final bookDetailProvider = FutureProvider.family<BookModel?, String>((ref, bookId) async {
   return ref.watch(bookRepositoryProvider).getBook(bookId);
 });
 
-final userBooksProvider = FutureProvider.family<List<BookModel>, String>((ref, uid) async {
-  return ref.watch(bookRepositoryProvider).getUserBooks(uid);
+/// 내 책장 - 실시간 스트림 (책 등록/삭제/수정 즉시 반영)
+final userBooksProvider = StreamProvider.family<List<BookModel>, String>((ref, uid) {
+  return ref.watch(bookRepositoryProvider).watchUserBooks(uid);
 });
 
 final bookSearchProvider = FutureProvider.family<List<BookModel>, String>((ref, query) async {
