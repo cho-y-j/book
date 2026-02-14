@@ -15,6 +15,8 @@ enum BookStatus {
   reserved('예약중'),
   exchanged('교환완료'),
   sold('판매완료'),
+  shared('나눔완료'),
+  donated('기증완료'),
   hidden('숨김');
 
   const BookStatus(this.label);
@@ -80,6 +82,11 @@ enum NotificationType {
   purchaseRequest,
   purchaseAccepted,
   purchaseCompleted,
+  sharingRequest,
+  sharingAccepted,
+  sharingCompleted,
+  donationCreated,
+  donationCompleted,
 }
 
 /// 신고 사유
@@ -120,11 +127,13 @@ enum UserRole {
   final String label;
 }
 
-/// 등록 유형 (교환/판매)
+/// 등록 유형 (교환/판매/나눔/기증)
 enum ListingType {
   exchange('교환'),
   sale('판매'),
-  both('교환+판매');
+  both('교환+판매'),
+  sharing('나눔'),
+  donation('기증');
 
   const ListingType(this.label);
   final String label;

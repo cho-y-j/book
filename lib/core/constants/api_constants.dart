@@ -38,6 +38,9 @@ class ApiConstants {
   static const reportsCollection = 'reports';
   static const relayExchangesCollection = 'relay_exchanges';
   static const purchaseRequestsCollection = 'purchase_requests';
+  static const sharingRequestsCollection = 'sharing_requests';
+  static const donationsCollection = 'donations';
+  static const organizationsCollection = 'organizations';
   static const adminCollection = 'admin';
 
   // Admin email

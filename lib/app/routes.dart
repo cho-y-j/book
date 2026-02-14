@@ -54,6 +54,13 @@ import '../features/relay_exchange/screens/relay_route_screen.dart';
 // Purchase
 import '../features/purchase/screens/purchase_request_screen.dart';
 import '../features/purchase/screens/incoming_purchase_requests_screen.dart';
+// Sharing
+import '../features/sharing/screens/sharing_request_screen.dart';
+import '../features/sharing/screens/incoming_sharing_requests_screen.dart';
+// Donation
+import '../features/donation/screens/organization_list_screen.dart';
+import '../features/donation/screens/donation_screen.dart';
+import '../features/donation/screens/donation_history_screen.dart';
 // Admin
 import '../features/admin/screens/admin_dashboard_screen.dart';
 import '../features/admin/screens/admin_user_list_screen.dart';
@@ -61,6 +68,7 @@ import '../features/admin/screens/admin_user_detail_screen.dart';
 import '../features/admin/screens/admin_dealer_screen.dart';
 import '../features/admin/screens/admin_book_list_screen.dart';
 import '../features/admin/screens/admin_report_screen.dart';
+import '../features/admin/screens/admin_organization_screen.dart';
 // Dealer
 import '../features/dealer/screens/dealer_request_screen.dart';
 
@@ -135,6 +143,15 @@ class AppRoutes {
   static const purchaseRequest = '/purchase-request/:bookId';
   static const incomingPurchaseRequests = '/incoming-purchase-requests';
 
+  // Sharing
+  static const sharingRequest = '/sharing-request/:bookId';
+  static const incomingSharingRequests = '/incoming-sharing-requests';
+
+  // Donation
+  static const organizations = '/organizations';
+  static const donation = '/donation/:organizationId';
+  static const donationHistory = '/donation-history';
+
   // Admin
   static const adminDashboard = '/admin';
   static const adminUsers = '/admin/users';
@@ -142,6 +159,7 @@ class AppRoutes {
   static const adminDealers = '/admin/dealers';
   static const adminBooks = '/admin/books';
   static const adminReports = '/admin/reports';
+  static const adminOrganizations = '/admin/organizations';
 
   // Dealer
   static const dealerRequest = '/dealer-request';
@@ -158,6 +176,8 @@ class AppRoutes {
   static String writeReviewPath(String matchId) => '/write-review/$matchId';
   static String bookClubDetailPath(String clubId) => '/book-club/$clubId';
   static String purchaseRequestPath(String bookId) => '/purchase-request/$bookId';
+  static String sharingRequestPath(String bookId) => '/sharing-request/$bookId';
+  static String donationPath(String organizationId) => '/donation/$organizationId';
   static String adminUserDetailPath(String userId) => '/admin/user/$userId';
 }
 
@@ -237,6 +257,15 @@ final appRouter = GoRouter(
     GoRoute(path: AppRoutes.purchaseRequest, builder: (_, state) => PurchaseRequestScreen(bookId: state.pathParameters['bookId']!)),
     GoRoute(path: AppRoutes.incomingPurchaseRequests, builder: (_, __) => const IncomingPurchaseRequestsScreen()),
 
+    // === Sharing ===
+    GoRoute(path: AppRoutes.sharingRequest, builder: (_, state) => SharingRequestScreen(bookId: state.pathParameters['bookId']!)),
+    GoRoute(path: AppRoutes.incomingSharingRequests, builder: (_, __) => const IncomingSharingRequestsScreen()),
+
+    // === Donation ===
+    GoRoute(path: AppRoutes.organizations, builder: (_, __) => const OrganizationListScreen()),
+    GoRoute(path: AppRoutes.donation, builder: (_, state) => DonationScreen(organizationId: state.pathParameters['organizationId']!)),
+    GoRoute(path: AppRoutes.donationHistory, builder: (_, __) => const DonationHistoryScreen()),
+
     // === Admin (nested to avoid GoRouter duplicate key issues) ===
     GoRoute(
       path: AppRoutes.adminDashboard,
@@ -247,6 +276,7 @@ final appRouter = GoRouter(
         GoRoute(path: 'dealers', builder: (_, __) => const AdminDealerScreen()),
         GoRoute(path: 'books', builder: (_, __) => const AdminBookListScreen()),
         GoRoute(path: 'reports', builder: (_, __) => const AdminReportScreen()),
+        GoRoute(path: 'organizations', builder: (_, __) => const AdminOrganizationScreen()),
       ],
     ),
 

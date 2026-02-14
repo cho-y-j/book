@@ -24,6 +24,10 @@ class BookModel {
   final int requestCount;
   final DateTime createdAt;
   final DateTime updatedAt;
+  final String? publisher;
+  final String? pubDate;
+  final String? description;
+  final int? originalPrice;
 
   const BookModel({
     required this.id,
@@ -49,6 +53,10 @@ class BookModel {
     this.requestCount = 0,
     required this.createdAt,
     required this.updatedAt,
+    this.publisher,
+    this.pubDate,
+    this.description,
+    this.originalPrice,
   });
 
   factory BookModel.fromFirestore(DocumentSnapshot doc) {
@@ -77,6 +85,10 @@ class BookModel {
       requestCount: data['requestCount'] ?? 0,
       createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
       updatedAt: (data['updatedAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+      publisher: data['publisher'],
+      pubDate: data['pubDate'],
+      description: data['description'],
+      originalPrice: data['originalPrice'],
     );
   }
 
@@ -104,6 +116,10 @@ class BookModel {
       'requestCount': requestCount,
       'createdAt': Timestamp.fromDate(createdAt),
       'updatedAt': Timestamp.fromDate(updatedAt),
+      'publisher': publisher,
+      'pubDate': pubDate,
+      'description': description,
+      'originalPrice': originalPrice,
     };
   }
 
@@ -118,6 +134,10 @@ class BookModel {
     String? location,
     GeoPoint? geoPoint,
     List<String>? tags,
+    String? publisher,
+    String? pubDate,
+    String? description,
+    int? originalPrice,
   }) {
     return BookModel(
       id: id,
@@ -143,6 +163,10 @@ class BookModel {
       requestCount: requestCount,
       createdAt: createdAt,
       updatedAt: DateTime.now(),
+      publisher: publisher ?? this.publisher,
+      pubDate: pubDate ?? this.pubDate,
+      description: description ?? this.description,
+      originalPrice: originalPrice ?? this.originalPrice,
     );
   }
 }

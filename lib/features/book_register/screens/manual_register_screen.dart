@@ -12,6 +12,9 @@ import '../../../app/theme/app_typography.dart';
 import '../../../app/theme/app_dimensions.dart';
 import '../../../core/constants/enums.dart';
 import '../../../core/constants/api_constants.dart';
+import '../../../data/models/donation_model.dart';
+import '../../../data/models/organization_model.dart';
+import '../../../providers/donation_providers.dart';
 
 class ManualRegisterScreen extends ConsumerStatefulWidget {
   const ManualRegisterScreen({super.key});
@@ -35,6 +38,7 @@ class _ManualRegisterScreenState extends ConsumerState<ManualRegisterScreen> {
   final List<Uint8List> _photoBytes = [];
   final _picker = ImagePicker();
   bool _isSubmitting = false;
+  OrganizationModel? _selectedOrganization;
 
   @override
   void dispose() {
@@ -63,13 +67,21 @@ class _ManualRegisterScreenState extends ConsumerState<ManualRegisterScreen> {
   void _showImageSourceDialog() {
     showModalBottomSheet(
       context: context,
-      builder: (ctx) => SafeArea(child: Wrap(children: [
-        ListTile(leading: const Icon(Icons.photo_library), title: const Text('갤러리에서 선택'),
-          onTap: () { Navigator.pop(ctx); _pickImage(ImageSource.gallery); }),
-        if (!kIsWeb)
-          ListTile(leading: const Icon(Icons.camera_alt), title: const Text('카메라로 촬영'),
-            onTap: () { Navigator.pop(ctx); _pickImage(ImageSource.camera); }),
-      ])),
+      builder: (ctx) => SafeArea(
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Container(width: 40, height: 4, margin: const EdgeInsets.symmetric(vertical: 12),
+            decoration: BoxDecoration(color: AppColors.divider, borderRadius: BorderRadius.circular(2))),
+          if (!kIsWeb)
+            ListTile(leading: const Icon(Icons.camera_alt), title: const Text('카메라로 촬영'),
+              onTap: () { Navigator.pop(ctx); _pickImage(ImageSource.camera); }),
+          ListTile(leading: const Icon(Icons.photo_library), title: const Text('갤러리에서 선택'),
+            onTap: () { Navigator.pop(ctx); _pickImage(ImageSource.gallery); }),
+          const Divider(),
+          ListTile(leading: const Icon(Icons.close, color: AppColors.textSecondary), title: const Text('취소'),
+            onTap: () => Navigator.pop(ctx)),
+          const SizedBox(height: 8),
+        ]),
+      ),
     );
   }
 
@@ -105,6 +117,12 @@ class _ManualRegisterScreenState extends ConsumerState<ManualRegisterScreen> {
 
   Future<void> _submitBook() async {
     if (!_formKey.currentState!.validate()) return;
+
+    if (_listingType == ListingType.donation && _selectedOrganization == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('기증할 기관을 선택해주세요')));
+      return;
+    }
+
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('로그인이 필요합니다')));
@@ -124,6 +142,11 @@ class _ManualRegisterScreenState extends ConsumerState<ManualRegisterScreen> {
       final now = DateTime.now();
       final title = _titleController.text.trim();
       final bookInfoId = 'manual_${title.hashCode}';
+
+      final needsPrice = _listingType == ListingType.sale || _listingType == ListingType.both;
+      final price = needsPrice && _priceController.text.isNotEmpty
+          ? int.parse(_priceController.text) : null;
+
       final docRef = await FirebaseFirestore.instance.collection(ApiConstants.booksCollection).add({
         'ownerUid': user.uid,
         'bookInfoId': bookInfoId,
@@ -137,8 +160,7 @@ class _ManualRegisterScreenState extends ConsumerState<ManualRegisterScreen> {
         'exchangeType': _exchangeType == ExchangeType.localOnly ? 'local_only'
             : _exchangeType == ExchangeType.deliveryOnly ? 'delivery_only' : 'both',
         'listingType': _listingType.name,
-        'price': _listingType != ListingType.exchange && _priceController.text.isNotEmpty
-            ? int.parse(_priceController.text) : null,
+        'price': price,
         'isDealer': false,
         'location': '',
         'geoPoint': const GeoPoint(37.5665, 126.9780),
@@ -147,7 +169,24 @@ class _ManualRegisterScreenState extends ConsumerState<ManualRegisterScreen> {
         'viewCount': 0, 'wishCount': 0, 'requestCount': 0,
         'createdAt': Timestamp.fromDate(now),
         'updatedAt': Timestamp.fromDate(now),
+        'publisher': _publisherController.text.isNotEmpty ? _publisherController.text.trim() : null,
+        'description': _descriptionController.text.isNotEmpty ? _descriptionController.text.trim() : null,
       });
+
+      // 기증인 경우 DonationModel 생성
+      if (_listingType == ListingType.donation && _selectedOrganization != null) {
+        final donation = DonationModel(
+          id: '',
+          donorUid: user.uid,
+          bookId: docRef.id,
+          bookTitle: title,
+          organizationId: _selectedOrganization!.id,
+          organizationName: _selectedOrganization!.name,
+          createdAt: now,
+          updatedAt: now,
+        );
+        await ref.read(donationRepositoryProvider).createDonation(donation);
+      }
 
       // 위시리스트 매칭 알림
       await _notifyWishlistMatches(
@@ -170,6 +209,9 @@ class _ManualRegisterScreenState extends ConsumerState<ManualRegisterScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final showExchangeType = _listingType != ListingType.sharing && _listingType != ListingType.donation;
+    final showPrice = _listingType == ListingType.sale || _listingType == ListingType.both;
+
     return Scaffold(
       appBar: AppBar(title: const Text('직접 등록')),
       body: SingleChildScrollView(
@@ -203,8 +245,8 @@ class _ManualRegisterScreenState extends ConsumerState<ManualRegisterScreen> {
           TextFormField(controller: _noteController, decoration: const InputDecoration(labelText: '상태 메모 (선택)', hintText: '예: 밑줄 약간 있음'), maxLines: 2),
           const SizedBox(height: 24),
 
-          // 실물 사진
-          Text('실물 사진 (최소 1장, 최대 5장)', style: AppTypography.titleLarge),
+          // 실물 사진 (선택)
+          Text('실물 사진 (선택, 최대 5장)', style: AppTypography.titleLarge),
           const SizedBox(height: 12),
           SizedBox(height: 110, child: ListView(scrollDirection: Axis.horizontal, children: [
             if (_photoFiles.length < 5) GestureDetector(
@@ -228,51 +270,99 @@ class _ManualRegisterScreenState extends ConsumerState<ManualRegisterScreen> {
               ]),
             )),
           ])),
+          if (_photoFiles.isEmpty)
+            Padding(padding: const EdgeInsets.only(top: 8),
+              child: Text('사진을 추가하면 교환 확률이 높아져요', style: AppTypography.bodySmall.copyWith(color: AppColors.textSecondary), textAlign: TextAlign.center)),
           const SizedBox(height: 24),
 
-          // 거래 방식
-          Text('거래 방식', style: AppTypography.titleLarge),
-          const SizedBox(height: 12),
-          Wrap(spacing: 8, children: ExchangeType.values.map((t) => ChoiceChip(
-            label: Text(t.label), selected: _exchangeType == t, selectedColor: AppColors.primaryLight,
-            onSelected: (_) => setState(() => _exchangeType = t),
-          )).toList()),
-          const SizedBox(height: 24),
-
-          // 등록 유형 (교환/판매)
+          // 등록 유형
           Text('등록 유형', style: AppTypography.titleLarge),
           const SizedBox(height: 12),
           Wrap(spacing: 8, children: ListingType.values.map((t) => ChoiceChip(
             label: Text(t.label), selected: _listingType == t,
             selectedColor: AppColors.primaryLight,
-            onSelected: (_) => setState(() => _listingType = t),
+            onSelected: (_) => setState(() {
+              _listingType = t;
+              _selectedOrganization = null;
+            }),
           )).toList()),
-          if (_listingType != ListingType.exchange) ...[
+
+          // 가격 입력
+          if (showPrice) ...[
             const SizedBox(height: 16),
             TextFormField(
               controller: _priceController,
               decoration: const InputDecoration(labelText: '판매 가격 (원)', hintText: '예: 10000', prefixText: '₩ '),
               keyboardType: TextInputType.number,
               validator: (v) {
-                if (_listingType != ListingType.exchange && (v == null || v.isEmpty)) return '가격을 입력해주세요';
+                if (showPrice && (v == null || v.isEmpty)) return '가격을 입력해주세요';
                 if (v != null && v.isNotEmpty && int.tryParse(v) == null) return '숫자만 입력해주세요';
                 return null;
               },
             ),
           ],
-          const SizedBox(height: 32),
+
+          // 기증 기관 선택
+          if (_listingType == ListingType.donation) ...[
+            const SizedBox(height: 16),
+            Text('기증 기관 선택', style: AppTypography.titleMedium),
+            const SizedBox(height: 8),
+            Consumer(builder: (context, ref, _) {
+              final orgsAsync = ref.watch(organizationsProvider);
+              return orgsAsync.when(
+                loading: () => const Center(child: CircularProgressIndicator()),
+                error: (e, _) => Text('기관 목록 로딩 실패: $e'),
+                data: (orgs) {
+                  if (orgs.isEmpty) {
+                    return Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(color: AppColors.divider.withOpacity(0.3), borderRadius: BorderRadius.circular(8)),
+                      child: const Text('등록된 기관이 없습니다. 관리자에게 문의해주세요.', textAlign: TextAlign.center),
+                    );
+                  }
+                  return Column(children: orgs.map((org) => RadioListTile<String>(
+                    title: Text(org.name),
+                    subtitle: Text('${_categoryLabel(org.category)} · ${org.address}', style: AppTypography.bodySmall),
+                    value: org.id,
+                    groupValue: _selectedOrganization?.id,
+                    onChanged: (_) => setState(() => _selectedOrganization = org),
+                    dense: true,
+                    contentPadding: EdgeInsets.zero,
+                  )).toList());
+                },
+              );
+            }),
+          ],
+          const SizedBox(height: 24),
+
+          // 거래 방식
+          if (showExchangeType) ...[
+            Text('거래 방식', style: AppTypography.titleLarge),
+            const SizedBox(height: 12),
+            Wrap(spacing: 8, children: ExchangeType.values.map((t) => ChoiceChip(
+              label: Text(t.label), selected: _exchangeType == t, selectedColor: AppColors.primaryLight,
+              onSelected: (_) => setState(() => _exchangeType = t),
+            )).toList()),
+            const SizedBox(height: 24),
+          ],
 
           ElevatedButton(
-            onPressed: (_photoFiles.isNotEmpty && !_isSubmitting) ? _submitBook : null,
+            onPressed: !_isSubmitting ? _submitBook : null,
             child: _isSubmitting
                 ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
                 : const Text('등록 완료'),
           ),
-          if (_photoFiles.isEmpty)
-            Padding(padding: const EdgeInsets.only(top: 8),
-              child: Text('실물 사진을 최소 1장 추가해주세요', style: AppTypography.bodySmall.copyWith(color: AppColors.error), textAlign: TextAlign.center)),
         ])),
       ),
     );
+  }
+
+  String _categoryLabel(String category) {
+    switch (category) {
+      case 'library': return '도서관';
+      case 'school': return '학교';
+      case 'ngo': return 'NGO';
+      default: return category;
+    }
   }
 }

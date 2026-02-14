@@ -134,6 +134,12 @@ class AdminDashboardScreen extends ConsumerWidget {
                 subtitle: '신고 접수 및 처리',
                 onTap: () => context.push('/admin/reports'),
               ),
+              _NavigationTile(
+                icon: Icons.business_outlined,
+                title: '기증 기관 관리',
+                subtitle: '기증 기관 등록/삭제, 시드 데이터',
+                onTap: () => context.push('/admin/organizations'),
+              ),
             ],
           ),
         ),

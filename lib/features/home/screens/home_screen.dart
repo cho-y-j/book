@@ -18,16 +18,18 @@ class HomeScreen extends ConsumerStatefulWidget {
 
 class _HomeScreenState extends ConsumerState<HomeScreen> {
   String? _selectedGenre;
-  String _listingFilter = 'all'; // 'all' | 'exchange' | 'sale'
+  String _listingFilter = 'all'; // 'all' | 'exchange' | 'sale' | 'sharing' | 'donation'
   SortOption _sortOption = SortOption.latest;
 
   @override
   Widget build(BuildContext context) {
-    // 판매 탭만 별도 프로바이더, 전체/교환은 동일 프로바이더 + 클라이언트 필터
-    // (기존 책에 listingType 필드가 없어서 서버 필터 불가)
-    final booksAsync = _listingFilter == 'sale'
-        ? ref.watch(saleListingsProvider(_selectedGenre))
-        : ref.watch(availableBooksProvider(_selectedGenre));
+    // 탭별 프로바이더 분기
+    final booksAsync = switch (_listingFilter) {
+      'sale' => ref.watch(saleListingsProvider(_selectedGenre)),
+      'sharing' => ref.watch(sharingListingsProvider(_selectedGenre)),
+      'donation' => ref.watch(donationListingsProvider(_selectedGenre)),
+      _ => ref.watch(availableBooksProvider(_selectedGenre)),
+    };
 
     return Scaffold(
       appBar: AppBar(
@@ -37,16 +39,23 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         ],
       ),
       body: Column(children: [
-        // 거래 유형 필터 (전체/교환/판매)
+        // 거래 유형 필터 (전체/교환/판매/나눔/기증)
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: AppDimensions.paddingMD, vertical: 4),
-          child: Row(children: [
-            _FilterTab(label: '전체', selected: _listingFilter == 'all', onTap: () => setState(() => _listingFilter = 'all')),
-            const SizedBox(width: 8),
-            _FilterTab(label: '교환', selected: _listingFilter == 'exchange', onTap: () => setState(() => _listingFilter = 'exchange')),
-            const SizedBox(width: 8),
-            _FilterTab(label: '판매', selected: _listingFilter == 'sale', onTap: () => setState(() => _listingFilter = 'sale')),
-          ]),
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(children: [
+              _FilterTab(label: '전체', selected: _listingFilter == 'all', onTap: () => setState(() => _listingFilter = 'all')),
+              const SizedBox(width: 8),
+              _FilterTab(label: '교환', selected: _listingFilter == 'exchange', onTap: () => setState(() => _listingFilter = 'exchange')),
+              const SizedBox(width: 8),
+              _FilterTab(label: '판매', selected: _listingFilter == 'sale', onTap: () => setState(() => _listingFilter = 'sale')),
+              const SizedBox(width: 8),
+              _FilterTab(label: '나눔', selected: _listingFilter == 'sharing', onTap: () => setState(() => _listingFilter = 'sharing')),
+              const SizedBox(width: 8),
+              _FilterTab(label: '기증', selected: _listingFilter == 'donation', onTap: () => setState(() => _listingFilter = 'donation')),
+            ]),
+          ),
         ),
         // Genre filter chips
         SizedBox(height: 48, child: ListView(scrollDirection: Axis.horizontal, padding: const EdgeInsets.symmetric(horizontal: AppDimensions.paddingMD),
@@ -84,9 +93,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             TextButton(onPressed: () => ref.invalidate(availableBooksProvider(_selectedGenre)), child: const Text('다시 시도')),
           ])),
           data: (allBooks) {
-            // 교환 탭: 판매 전용(sale) 제외 (기존 책은 listingType 없으므로 교환 취급)
+            // 교환 탭: 판매/나눔/기증 제외 (기존 책은 listingType 없으므로 교환 취급)
             final books = _listingFilter == 'exchange'
-                ? allBooks.where((b) => b.listingType != 'sale').toList()
+                ? allBooks.where((b) => b.listingType != 'sale' && b.listingType != 'sharing' && b.listingType != 'donation').toList()
                 : allBooks;
             if (books.isEmpty) {
               return Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
@@ -102,6 +111,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 ref.invalidate(availableBooksProvider(_selectedGenre));
                 ref.invalidate(saleListingsProvider(_selectedGenre));
                 ref.invalidate(exchangeListingsProvider(_selectedGenre));
+                ref.invalidate(sharingListingsProvider(_selectedGenre));
+                ref.invalidate(donationListingsProvider(_selectedGenre));
               },
               child: ListView.builder(
                 padding: const EdgeInsets.all(AppDimensions.paddingMD),

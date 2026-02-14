@@ -15,6 +15,8 @@ class BookFeedCard extends StatelessWidget {
     switch (type) {
       case 'sale': return '판매';
       case 'both': return '교환+판매';
+      case 'sharing': return '나눔';
+      case 'donation': return '기증';
       default: return '교환';
     }
   }
@@ -23,6 +25,8 @@ class BookFeedCard extends StatelessWidget {
     switch (type) {
       case 'sale': return Colors.orange;
       case 'both': return AppColors.primary;
+      case 'sharing': return Colors.green;
+      case 'donation': return Colors.blue;
       default: return AppColors.secondary;
     }
   }
@@ -68,7 +72,11 @@ class BookFeedCard extends StatelessWidget {
           const SizedBox(height: 8),
           // 가격 또는 교환 표시 + 통계
           Row(children: [
-            if (book?.price != null && (listing == 'sale' || listing == 'both'))
+            if (listing == 'sharing')
+              Text('무료 나눔', style: AppTypography.titleSmall.copyWith(color: Colors.green, fontWeight: FontWeight.bold))
+            else if (listing == 'donation')
+              Text('기증', style: AppTypography.titleSmall.copyWith(color: Colors.blue, fontWeight: FontWeight.bold))
+            else if (book?.price != null && (listing == 'sale' || listing == 'both'))
               Text('${Formatters.formatPrice(book!.price!)}원', style: AppTypography.titleSmall.copyWith(color: AppColors.primary, fontWeight: FontWeight.bold))
             else
               Text('무료 교환', style: AppTypography.bodySmall.copyWith(color: AppColors.secondary)),
