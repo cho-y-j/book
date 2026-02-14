@@ -5,7 +5,11 @@ class ApiConstants {
 
   // 알라딘 API
   static const aladinBaseUrl = 'http://www.aladin.co.kr/ttb/api';
-  static String get aladinApiKey => EnvConfig.aladinApiKey;
+  static const _fallbackAladinKey = 'ttbpcon16132339001';
+  static String get aladinApiKey {
+    final key = EnvConfig.aladinApiKey;
+    return key.isNotEmpty ? key : _fallbackAladinKey;
+  }
 
   // 네이버 책 검색 API
   static const naverBaseUrl = 'https://openapi.naver.com/v1/search/book.json';

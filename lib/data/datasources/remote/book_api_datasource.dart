@@ -9,8 +9,9 @@ class BookApiDatasource {
   /// 알라딘 API로 ISBN 검색
   Future<Map<String, dynamic>?> searchByIsbn(String isbn) async {
     try {
+      final url = '${ApiConstants.aladinBaseUrl}/ItemLookUp.aspx';
       final response = await _dio.get(
-        '${ApiConstants.aladinBaseUrl}/ItemLookUp.aspx',
+        url,
         queryParameters: {
           'ttbkey': ApiConstants.aladinApiKey,
           'ItemId': isbn,
@@ -33,8 +34,9 @@ class BookApiDatasource {
   /// 알라딘 API로 제목 검색
   Future<List<Map<String, dynamic>>> searchByTitle(String title) async {
     try {
+      final url = '${ApiConstants.aladinBaseUrl}/ItemSearch.aspx';
       final response = await _dio.get(
-        '${ApiConstants.aladinBaseUrl}/ItemSearch.aspx',
+        url,
         queryParameters: {
           'ttbkey': ApiConstants.aladinApiKey,
           'Query': title,
@@ -59,8 +61,9 @@ class BookApiDatasource {
   /// 알라딘 API로 베스트셀러 조회
   Future<List<Map<String, dynamic>>> getBestsellers({String categoryId = '0'}) async {
     try {
+      final url = '${ApiConstants.aladinBaseUrl}/ItemList.aspx';
       final response = await _dio.get(
-        '${ApiConstants.aladinBaseUrl}/ItemList.aspx',
+        url,
         queryParameters: {
           'ttbkey': ApiConstants.aladinApiKey,
           'QueryType': 'Bestseller',
