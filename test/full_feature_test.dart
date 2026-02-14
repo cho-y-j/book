@@ -4,9 +4,14 @@ import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
 import 'package:book_bridge/data/models/book_model.dart';
 import 'package:book_bridge/data/models/user_model.dart';
 import 'package:book_bridge/data/models/purchase_request_model.dart';
+import 'package:book_bridge/data/models/sharing_request_model.dart';
+import 'package:book_bridge/data/models/donation_model.dart';
+import 'package:book_bridge/data/models/organization_model.dart';
 import 'package:book_bridge/data/repositories/book_repository.dart';
 import 'package:book_bridge/data/repositories/purchase_repository.dart';
 import 'package:book_bridge/data/repositories/admin_repository.dart';
+import 'package:book_bridge/data/repositories/sharing_repository.dart';
+import 'package:book_bridge/data/repositories/donation_repository.dart';
 
 const _defaultGeoPoint = GeoPoint(37.5665, 126.9780);
 
@@ -805,6 +810,804 @@ void main() {
       ];
 
       expect(allBooks.length, 2); // 필터 없이 전부
+    });
+
+    test('교환 필터 - 나눔/기증도 제외', () {
+      final allBooks = [
+        BookModel(id: '1', ownerUid: 'u1', bookInfoId: 'b1', title: '교환 책', author: 'a', condition: 'good', status: 'available', listingType: 'exchange', genre: '소설', viewCount: 0, wishCount: 0, requestCount: 0, location: '', geoPoint: _defaultGeoPoint, createdAt: DateTime.now(), updatedAt: DateTime.now()),
+        BookModel(id: '2', ownerUid: 'u2', bookInfoId: 'b2', title: '판매 책', author: 'a', condition: 'good', status: 'available', listingType: 'sale', price: 10000, genre: '소설', viewCount: 0, wishCount: 0, requestCount: 0, location: '', geoPoint: _defaultGeoPoint, createdAt: DateTime.now(), updatedAt: DateTime.now()),
+        BookModel(id: '3', ownerUid: 'u3', bookInfoId: 'b3', title: '나눔 책', author: 'a', condition: 'good', status: 'available', listingType: 'sharing', genre: '소설', viewCount: 0, wishCount: 0, requestCount: 0, location: '', geoPoint: _defaultGeoPoint, createdAt: DateTime.now(), updatedAt: DateTime.now()),
+        BookModel(id: '4', ownerUid: 'u4', bookInfoId: 'b4', title: '기증 책', author: 'a', condition: 'good', status: 'available', listingType: 'donation', genre: '소설', viewCount: 0, wishCount: 0, requestCount: 0, location: '', geoPoint: _defaultGeoPoint, createdAt: DateTime.now(), updatedAt: DateTime.now()),
+        BookModel(id: '5', ownerUid: 'u5', bookInfoId: 'b5', title: '교환+판매', author: 'a', condition: 'good', status: 'available', listingType: 'both', price: 5000, genre: '소설', viewCount: 0, wishCount: 0, requestCount: 0, location: '', geoPoint: _defaultGeoPoint, createdAt: DateTime.now(), updatedAt: DateTime.now()),
+      ];
+
+      final exchangeFiltered = allBooks.where((b) =>
+        b.listingType != 'sale' && b.listingType != 'sharing' && b.listingType != 'donation'
+      ).toList();
+      expect(exchangeFiltered.length, 2); // exchange + both만
+      expect(exchangeFiltered.any((b) => b.title == '교환 책'), true);
+      expect(exchangeFiltered.any((b) => b.title == '교환+판매'), true);
+    });
+  });
+
+  // ========== 나눔/기증 신규 테스트 ==========
+
+  group('BookModel 나눔/기증 + 상세정보 필드 테스트', () {
+    test('나눔(sharing) 책 생성 및 직렬화', () {
+      final book = BookModel(
+        id: 'share1',
+        ownerUid: 'user1',
+        bookInfoId: 'isbn_share',
+        title: '나눔할 소설책',
+        author: '나눔 저자',
+        condition: 'good',
+        status: 'available',
+        listingType: 'sharing',
+        genre: '소설',
+        viewCount: 0, wishCount: 0, requestCount: 0,
+        location: '서울 강남구',
+        geoPoint: _defaultGeoPoint,
+        createdAt: DateTime(2024, 6, 1),
+        updatedAt: DateTime(2024, 6, 1),
+      );
+
+      final map = book.toFirestore();
+      expect(map['listingType'], 'sharing');
+      expect(map['price'], isNull);
+      expect(map['isDealer'], false);
+      expect(book.listingType, 'sharing');
+    });
+
+    test('기증(donation) 책 생성 및 직렬화', () {
+      final book = BookModel(
+        id: 'donate1',
+        ownerUid: 'user2',
+        bookInfoId: 'isbn_donate',
+        title: '기증할 교과서',
+        author: '교과서 저자',
+        condition: 'fair',
+        status: 'available',
+        listingType: 'donation',
+        genre: '교육',
+        viewCount: 0, wishCount: 0, requestCount: 0,
+        location: '서울 종로구',
+        geoPoint: _defaultGeoPoint,
+        createdAt: DateTime(2024, 6, 1),
+        updatedAt: DateTime(2024, 6, 1),
+      );
+
+      final map = book.toFirestore();
+      expect(map['listingType'], 'donation');
+      expect(map['price'], isNull);
+    });
+
+    test('알라딘 상세정보 필드 저장/읽기', () async {
+      await fakeFirestore.collection('books').doc('aladin_book').set({
+        'ownerUid': 'user1',
+        'bookInfoId': 'isbn_aladin',
+        'title': '달러구트 꿈 백화점',
+        'author': '이미예',
+        'condition': 'good',
+        'status': 'available',
+        'listingType': 'exchange',
+        'genre': '소설',
+        'viewCount': 0, 'wishCount': 0, 'requestCount': 0,
+        'publisher': '팩토리나인',
+        'pubDate': '2020-07-08',
+        'description': '잠들어야만 입장 가능한 신비한 꿈 백화점 이야기',
+        'originalPrice': 13800,
+        'createdAt': Timestamp.now(),
+        'updatedAt': Timestamp.now(),
+      });
+
+      final doc = await fakeFirestore.collection('books').doc('aladin_book').get();
+      final book = BookModel.fromFirestore(doc);
+
+      expect(book.publisher, '팩토리나인');
+      expect(book.pubDate, '2020-07-08');
+      expect(book.description, contains('꿈 백화점'));
+      expect(book.originalPrice, 13800);
+    });
+
+    test('상세정보 없는 기존 책 역호환성', () async {
+      await fakeFirestore.collection('books').doc('old_no_detail').set({
+        'ownerUid': 'user1',
+        'bookInfoId': 'isbn_old',
+        'title': '오래된 책',
+        'author': '구 저자',
+        'condition': 'good',
+        'status': 'available',
+        'genre': '소설',
+        'viewCount': 5,
+        'createdAt': Timestamp.now(),
+        'updatedAt': Timestamp.now(),
+      });
+
+      final doc = await fakeFirestore.collection('books').doc('old_no_detail').get();
+      final book = BookModel.fromFirestore(doc);
+
+      expect(book.publisher, isNull);
+      expect(book.pubDate, isNull);
+      expect(book.description, isNull);
+      expect(book.originalPrice, isNull);
+      expect(book.listingType, 'exchange'); // 기본값
+    });
+
+    test('나눔완료(shared) / 기증완료(donated) 상태', () {
+      final sharedBook = BookModel(
+        id: 's1', ownerUid: 'u1', bookInfoId: 'b1', title: '나눔완료 책', author: 'a',
+        condition: 'good', status: 'shared', listingType: 'sharing', genre: '소설',
+        viewCount: 0, wishCount: 0, requestCount: 0, location: '',
+        geoPoint: _defaultGeoPoint, createdAt: DateTime.now(), updatedAt: DateTime.now(),
+      );
+      final donatedBook = BookModel(
+        id: 'd1', ownerUid: 'u2', bookInfoId: 'b2', title: '기증완료 책', author: 'a',
+        condition: 'good', status: 'donated', listingType: 'donation', genre: '소설',
+        viewCount: 0, wishCount: 0, requestCount: 0, location: '',
+        geoPoint: _defaultGeoPoint, createdAt: DateTime.now(), updatedAt: DateTime.now(),
+      );
+
+      expect(sharedBook.status, 'shared');
+      expect(donatedBook.status, 'donated');
+      expect(sharedBook.toFirestore()['status'], 'shared');
+      expect(donatedBook.toFirestore()['status'], 'donated');
+    });
+  });
+
+  group('SharingRequestModel 테스트', () {
+    test('나눔 요청 생성 및 직렬화', () {
+      final request = SharingRequestModel(
+        id: 'sr1',
+        requesterUid: 'requester1',
+        ownerUid: 'owner1',
+        bookId: 'book1',
+        bookTitle: '나눔 요청 책',
+        status: 'pending',
+        message: '나눔 받고 싶습니다',
+        createdAt: DateTime(2024, 6, 1),
+        updatedAt: DateTime(2024, 6, 1),
+      );
+
+      final map = request.toFirestore();
+      expect(map['requesterUid'], 'requester1');
+      expect(map['ownerUid'], 'owner1');
+      expect(map['status'], 'pending');
+      expect(map['message'], '나눔 받고 싶습니다');
+      expect(map['completedAt'], isNull);
+    });
+
+    test('나눔 요청 Firestore 읽기', () async {
+      await fakeFirestore.collection('sharing_requests').doc('sr1').set({
+        'requesterUid': 'req1',
+        'ownerUid': 'own1',
+        'bookId': 'book1',
+        'bookTitle': '테스트 나눔',
+        'status': 'accepted',
+        'message': '감사합니다',
+        'createdAt': Timestamp.now(),
+        'updatedAt': Timestamp.now(),
+      });
+
+      final doc = await fakeFirestore.collection('sharing_requests').doc('sr1').get();
+      final request = SharingRequestModel.fromFirestore(doc);
+
+      expect(request.requesterUid, 'req1');
+      expect(request.ownerUid, 'own1');
+      expect(request.status, 'accepted');
+      expect(request.message, '감사합니다');
+      expect(request.completedAt, isNull);
+    });
+  });
+
+  group('DonationModel 테스트', () {
+    test('기증 생성 및 직렬화', () {
+      final donation = DonationModel(
+        id: 'don1',
+        donorUid: 'donor1',
+        bookId: 'book1',
+        bookTitle: '기증할 책',
+        organizationId: 'org1',
+        organizationName: '서울도서관',
+        status: 'pending',
+        message: '도서관에 기증합니다',
+        createdAt: DateTime(2024, 6, 1),
+        updatedAt: DateTime(2024, 6, 1),
+      );
+
+      final map = donation.toFirestore();
+      expect(map['donorUid'], 'donor1');
+      expect(map['organizationId'], 'org1');
+      expect(map['organizationName'], '서울도서관');
+      expect(map['status'], 'pending');
+      expect(map['message'], '도서관에 기증합니다');
+    });
+
+    test('기증 Firestore 읽기', () async {
+      await fakeFirestore.collection('donations').doc('don1').set({
+        'donorUid': 'donor1',
+        'bookId': 'book1',
+        'bookTitle': '기증 책',
+        'organizationId': 'org1',
+        'organizationName': '국립중앙도서관',
+        'status': 'in_transit',
+        'createdAt': Timestamp.now(),
+        'updatedAt': Timestamp.now(),
+      });
+
+      final doc = await fakeFirestore.collection('donations').doc('don1').get();
+      final donation = DonationModel.fromFirestore(doc);
+
+      expect(donation.donorUid, 'donor1');
+      expect(donation.organizationName, '국립중앙도서관');
+      expect(donation.status, 'in_transit');
+    });
+  });
+
+  group('OrganizationModel 테스트', () {
+    test('기관 생성 및 직렬화', () {
+      final org = OrganizationModel(
+        id: 'org1',
+        name: '서울도서관',
+        description: '서울시 대표 공공도서관',
+        address: '서울 중구 세종대로 110',
+        category: 'library',
+        isActive: true,
+        contactInfo: '02-1234-5678',
+        createdAt: DateTime(2024, 1, 1),
+      );
+
+      final map = org.toFirestore();
+      expect(map['name'], '서울도서관');
+      expect(map['category'], 'library');
+      expect(map['isActive'], true);
+      expect(map['contactInfo'], '02-1234-5678');
+    });
+
+    test('기관 Firestore 읽기', () async {
+      await fakeFirestore.collection('organizations').doc('org1').set({
+        'name': '한국어린이재단',
+        'description': '어린이 교육 재단',
+        'address': '서울 종로구',
+        'category': 'ngo',
+        'isActive': true,
+        'createdAt': Timestamp.now(),
+      });
+
+      final doc = await fakeFirestore.collection('organizations').doc('org1').get();
+      final org = OrganizationModel.fromFirestore(doc);
+
+      expect(org.name, '한국어린이재단');
+      expect(org.category, 'ngo');
+      expect(org.isActive, true);
+      expect(org.contactInfo, isNull);
+    });
+  });
+
+  group('SharingRepository 테스트', () {
+    late SharingRepository sharingRepo;
+
+    setUp(() {
+      sharingRepo = SharingRepository(firestore: fakeFirestore);
+    });
+
+    test('나눔 요청 생성', () async {
+      final request = SharingRequestModel(
+        id: '',
+        requesterUid: 'req1',
+        ownerUid: 'own1',
+        bookId: 'book1',
+        bookTitle: '나눔 테스트 책',
+        status: 'pending',
+        message: '나눔 부탁드립니다',
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+      );
+
+      final id = await sharingRepo.createSharingRequest(request);
+      expect(id, isNotEmpty);
+
+      final doc = await fakeFirestore.collection('sharing_requests').doc(id).get();
+      expect(doc.exists, true);
+      expect(doc.data()!['requesterUid'], 'req1');
+      expect(doc.data()!['status'], 'pending');
+    });
+
+    test('나눔 요청 상태 업데이트 - 수락', () async {
+      final id = await sharingRepo.createSharingRequest(SharingRequestModel(
+        id: '', requesterUid: 'req1', ownerUid: 'own1',
+        bookId: 'book1', bookTitle: '테스트', status: 'pending',
+        createdAt: DateTime.now(), updatedAt: DateTime.now(),
+      ));
+
+      await sharingRepo.updateStatus(id, 'accepted');
+
+      final doc = await fakeFirestore.collection('sharing_requests').doc(id).get();
+      expect(doc.data()!['status'], 'accepted');
+    });
+
+    test('나눔 요청 완료 - completedAt 설정', () async {
+      final id = await sharingRepo.createSharingRequest(SharingRequestModel(
+        id: '', requesterUid: 'req1', ownerUid: 'own1',
+        bookId: 'book1', bookTitle: '테스트', status: 'pending',
+        createdAt: DateTime.now(), updatedAt: DateTime.now(),
+      ));
+
+      await sharingRepo.updateStatus(id, 'completed');
+
+      final doc = await fakeFirestore.collection('sharing_requests').doc(id).get();
+      expect(doc.data()!['status'], 'completed');
+      expect(doc.data()!['completedAt'], isNotNull);
+    });
+
+    test('소유자의 수신 나눔 요청 스트림', () async {
+      for (int i = 0; i < 3; i++) {
+        await sharingRepo.createSharingRequest(SharingRequestModel(
+          id: '', requesterUid: 'req$i', ownerUid: 'owner1',
+          bookId: 'book$i', bookTitle: '책 $i', status: 'pending',
+          createdAt: DateTime.now(), updatedAt: DateTime.now(),
+        ));
+      }
+      // 다른 소유자의 요청
+      await sharingRepo.createSharingRequest(SharingRequestModel(
+        id: '', requesterUid: 'req99', ownerUid: 'owner2',
+        bookId: 'book99', bookTitle: '다른 책', status: 'pending',
+        createdAt: DateTime.now(), updatedAt: DateTime.now(),
+      ));
+
+      final requests = await sharingRepo.watchIncomingRequests('owner1').first;
+      expect(requests.length, 3);
+      expect(requests.every((r) => r.ownerUid == 'owner1'), true);
+    });
+
+    test('요청자의 보낸 나눔 요청 스트림', () async {
+      for (int i = 0; i < 2; i++) {
+        await sharingRepo.createSharingRequest(SharingRequestModel(
+          id: '', requesterUid: 'myuser', ownerUid: 'own$i',
+          bookId: 'book$i', bookTitle: '책 $i', status: 'pending',
+          createdAt: DateTime.now(), updatedAt: DateTime.now(),
+        ));
+      }
+
+      final sent = await sharingRepo.watchSentRequests('myuser').first;
+      expect(sent.length, 2);
+      expect(sent.every((r) => r.requesterUid == 'myuser'), true);
+    });
+  });
+
+  group('DonationRepository 테스트', () {
+    late DonationRepository donationRepo;
+
+    setUp(() {
+      donationRepo = DonationRepository(firestore: fakeFirestore);
+    });
+
+    test('기증 생성', () async {
+      final donation = DonationModel(
+        id: '',
+        donorUid: 'donor1',
+        bookId: 'book1',
+        bookTitle: '기증 테스트 책',
+        organizationId: 'org1',
+        organizationName: '서울도서관',
+        status: 'pending',
+        message: '기증합니다',
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+      );
+
+      final id = await donationRepo.createDonation(donation);
+      expect(id, isNotEmpty);
+
+      final doc = await fakeFirestore.collection('donations').doc(id).get();
+      expect(doc.exists, true);
+      expect(doc.data()!['donorUid'], 'donor1');
+      expect(doc.data()!['organizationName'], '서울도서관');
+      expect(doc.data()!['status'], 'pending');
+    });
+
+    test('기증 상태 업데이트 - accepted → in_transit → completed', () async {
+      final id = await donationRepo.createDonation(DonationModel(
+        id: '', donorUid: 'donor1', bookId: 'book1', bookTitle: '테스트',
+        organizationId: 'org1', organizationName: '도서관', status: 'pending',
+        createdAt: DateTime.now(), updatedAt: DateTime.now(),
+      ));
+
+      // accepted
+      await donationRepo.updateDonationStatus(id, 'accepted');
+      var doc = await fakeFirestore.collection('donations').doc(id).get();
+      expect(doc.data()!['status'], 'accepted');
+      expect(doc.data()!['completedAt'], isNull);
+
+      // in_transit
+      await donationRepo.updateDonationStatus(id, 'in_transit');
+      doc = await fakeFirestore.collection('donations').doc(id).get();
+      expect(doc.data()!['status'], 'in_transit');
+
+      // completed
+      await donationRepo.updateDonationStatus(id, 'completed');
+      doc = await fakeFirestore.collection('donations').doc(id).get();
+      expect(doc.data()!['status'], 'completed');
+      expect(doc.data()!['completedAt'], isNotNull);
+    });
+
+    test('사용자의 기증 내역 스트림', () async {
+      for (int i = 0; i < 3; i++) {
+        await donationRepo.createDonation(DonationModel(
+          id: '', donorUid: 'donor1', bookId: 'book$i', bookTitle: '기증 $i',
+          organizationId: 'org$i', organizationName: '기관 $i', status: 'pending',
+          createdAt: DateTime.now(), updatedAt: DateTime.now(),
+        ));
+      }
+      // 다른 기증자
+      await donationRepo.createDonation(DonationModel(
+        id: '', donorUid: 'donor2', bookId: 'book99', bookTitle: '다른 기증',
+        organizationId: 'org1', organizationName: '기관1', status: 'pending',
+        createdAt: DateTime.now(), updatedAt: DateTime.now(),
+      ));
+
+      final donations = await donationRepo.watchUserDonations('donor1').first;
+      expect(donations.length, 3);
+      expect(donations.every((d) => d.donorUid == 'donor1'), true);
+    });
+
+    test('기관 CRUD', () async {
+      // Create
+      final orgId = await donationRepo.createOrganization(OrganizationModel(
+        id: '', name: '테스트 도서관', description: '테스트용', address: '서울',
+        category: 'library', isActive: true, createdAt: DateTime.now(),
+      ));
+      expect(orgId, isNotEmpty);
+
+      // Read
+      final orgs = await donationRepo.getOrganizations();
+      expect(orgs.length, 1);
+      expect(orgs.first.name, '테스트 도서관');
+
+      // Update
+      await donationRepo.updateOrganization(orgId, {'name': '수정된 도서관'});
+      final updatedDoc = await fakeFirestore.collection('organizations').doc(orgId).get();
+      expect(updatedDoc.data()!['name'], '수정된 도서관');
+
+      // Soft delete (isActive = false)
+      await donationRepo.deleteOrganization(orgId);
+      final deletedOrgs = await donationRepo.getOrganizations();
+      expect(deletedOrgs.length, 0); // isActive=false이므로 필터링됨
+    });
+
+    test('카테고리별 기관 필터', () async {
+      await donationRepo.createOrganization(OrganizationModel(
+        id: '', name: '서울도서관', description: '도서관', address: '서울',
+        category: 'library', isActive: true, createdAt: DateTime.now(),
+      ));
+      await donationRepo.createOrganization(OrganizationModel(
+        id: '', name: '서울대학교', description: '학교', address: '관악구',
+        category: 'school', isActive: true, createdAt: DateTime.now(),
+      ));
+      await donationRepo.createOrganization(OrganizationModel(
+        id: '', name: '아름다운가게', description: 'NGO', address: '종로',
+        category: 'ngo', isActive: true, createdAt: DateTime.now(),
+      ));
+
+      final all = await donationRepo.getOrganizations();
+      expect(all.length, 3);
+
+      final libraries = await donationRepo.getOrganizations(category: 'library');
+      expect(libraries.length, 1);
+      expect(libraries.first.name, '서울도서관');
+
+      final schools = await donationRepo.getOrganizations(category: 'school');
+      expect(schools.length, 1);
+      expect(schools.first.name, '서울대학교');
+
+      final ngos = await donationRepo.getOrganizations(category: 'ngo');
+      expect(ngos.length, 1);
+      expect(ngos.first.name, '아름다운가게');
+    });
+
+    test('기관 실시간 스트림', () async {
+      await donationRepo.createOrganization(OrganizationModel(
+        id: '', name: '스트림 도서관', description: '', address: '',
+        category: 'library', isActive: true, createdAt: DateTime.now(),
+      ));
+
+      final orgs = await donationRepo.watchOrganizations().first;
+      expect(orgs.length, 1);
+      expect(orgs.first.name, '스트림 도서관');
+    });
+  });
+
+  group('BookRepository 나눔/기증 스트림 테스트', () {
+    late BookRepository bookRepo;
+
+    setUp(() async {
+      bookRepo = BookRepository(firestore: fakeFirestore);
+
+      // 다양한 listingType 책 데이터 삽입
+      final books = [
+        {'ownerUid': 'u1', 'bookInfoId': 'b1', 'title': '교환 책', 'author': '저자', 'condition': 'good', 'status': 'available', 'listingType': 'exchange', 'genre': '소설', 'viewCount': 0, 'wishCount': 0, 'requestCount': 0, 'createdAt': Timestamp.fromDate(DateTime(2024, 1, 1)), 'updatedAt': Timestamp.fromDate(DateTime(2024, 1, 1))},
+        {'ownerUid': 'u2', 'bookInfoId': 'b2', 'title': '판매 책', 'author': '저자', 'condition': 'good', 'status': 'available', 'listingType': 'sale', 'price': 10000, 'genre': '소설', 'viewCount': 0, 'wishCount': 0, 'requestCount': 0, 'createdAt': Timestamp.fromDate(DateTime(2024, 1, 2)), 'updatedAt': Timestamp.fromDate(DateTime(2024, 1, 2))},
+        {'ownerUid': 'u3', 'bookInfoId': 'b3', 'title': '나눔 책 1', 'author': '저자', 'condition': 'good', 'status': 'available', 'listingType': 'sharing', 'genre': '소설', 'viewCount': 0, 'wishCount': 0, 'requestCount': 0, 'createdAt': Timestamp.fromDate(DateTime(2024, 1, 3)), 'updatedAt': Timestamp.fromDate(DateTime(2024, 1, 3))},
+        {'ownerUid': 'u4', 'bookInfoId': 'b4', 'title': '나눔 책 2', 'author': '저자', 'condition': 'fair', 'status': 'available', 'listingType': 'sharing', 'genre': '에세이', 'viewCount': 0, 'wishCount': 0, 'requestCount': 0, 'createdAt': Timestamp.fromDate(DateTime(2024, 1, 4)), 'updatedAt': Timestamp.fromDate(DateTime(2024, 1, 4))},
+        {'ownerUid': 'u5', 'bookInfoId': 'b5', 'title': '기증 책 1', 'author': '저자', 'condition': 'good', 'status': 'available', 'listingType': 'donation', 'genre': '소설', 'viewCount': 0, 'wishCount': 0, 'requestCount': 0, 'createdAt': Timestamp.fromDate(DateTime(2024, 1, 5)), 'updatedAt': Timestamp.fromDate(DateTime(2024, 1, 5))},
+        {'ownerUid': 'u6', 'bookInfoId': 'b6', 'title': '기증 책 2', 'author': '저자', 'condition': 'good', 'status': 'available', 'listingType': 'donation', 'genre': '교육', 'viewCount': 0, 'wishCount': 0, 'requestCount': 0, 'createdAt': Timestamp.fromDate(DateTime(2024, 1, 6)), 'updatedAt': Timestamp.fromDate(DateTime(2024, 1, 6))},
+        {'ownerUid': 'u7', 'bookInfoId': 'b7', 'title': '숨긴 나눔 책', 'author': '저자', 'condition': 'good', 'status': 'hidden', 'listingType': 'sharing', 'genre': '소설', 'viewCount': 0, 'wishCount': 0, 'requestCount': 0, 'createdAt': Timestamp.fromDate(DateTime(2024, 1, 7)), 'updatedAt': Timestamp.fromDate(DateTime(2024, 1, 7))},
+      ];
+
+      for (final book in books) {
+        await fakeFirestore.collection('books').add(book);
+      }
+    });
+
+    test('나눔 목록 스트림 - available sharing만', () async {
+      final sharingBooks = await bookRepo.watchSharingListings().first;
+      expect(sharingBooks.length, 2); // hidden 제외
+      expect(sharingBooks.every((b) => b.listingType == 'sharing'), true);
+      expect(sharingBooks.every((b) => b.status == 'available'), true);
+    });
+
+    test('기증 목록 스트림 - available donation만', () async {
+      final donationBooks = await bookRepo.watchDonationListings().first;
+      expect(donationBooks.length, 2);
+      expect(donationBooks.every((b) => b.listingType == 'donation'), true);
+      expect(donationBooks.every((b) => b.status == 'available'), true);
+    });
+
+    test('전체 available 책 조회 - 모든 listingType 포함', () async {
+      final allBooks = await bookRepo.getAvailableBooks();
+      expect(allBooks.length, 6); // hidden 제외, 나머지 6개 전부
+    });
+  });
+
+  group('나눔 전체 플로우 통합 테스트', () {
+    late BookRepository bookRepo;
+    late SharingRepository sharingRepo;
+
+    setUp(() {
+      bookRepo = BookRepository(firestore: fakeFirestore);
+      sharingRepo = SharingRepository(firestore: fakeFirestore);
+    });
+
+    test('나눔 등록 → 요청 → 수락 → 완료 전체 플로우', () async {
+      // 1. 소유자가 나눔 책 등록
+      final bookId = await bookRepo.createBook(BookModel(
+        id: '',
+        ownerUid: 'owner1',
+        bookInfoId: 'isbn_sharing_flow',
+        title: '무료로 드립니다',
+        author: '좋은 사람',
+        condition: 'good',
+        status: 'available',
+        listingType: 'sharing',
+        genre: '소설',
+        location: '서울 마포구',
+        geoPoint: _defaultGeoPoint,
+        viewCount: 0, wishCount: 0, requestCount: 0,
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+      ));
+      expect(bookId, isNotEmpty);
+
+      // 2. 등록 확인 - 나눔 목록에 노출
+      final sharingList = await bookRepo.watchSharingListings().first;
+      expect(sharingList.any((b) => b.title == '무료로 드립니다'), true);
+
+      // 3. 요청자가 나눔 요청
+      final requestId = await sharingRepo.createSharingRequest(SharingRequestModel(
+        id: '',
+        requesterUid: 'requester1',
+        ownerUid: 'owner1',
+        bookId: bookId,
+        bookTitle: '무료로 드립니다',
+        status: 'pending',
+        message: '감사히 받겠습니다!',
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+      ));
+      expect(requestId, isNotEmpty);
+
+      // 4. 소유자가 요청 확인
+      final incoming = await sharingRepo.watchIncomingRequests('owner1').first;
+      expect(incoming.length, 1);
+      expect(incoming.first.message, '감사히 받겠습니다!');
+      expect(incoming.first.status, 'pending');
+
+      // 5. 소유자가 수락
+      await sharingRepo.updateStatus(requestId, 'accepted');
+      var doc = await fakeFirestore.collection('sharing_requests').doc(requestId).get();
+      expect(doc.data()!['status'], 'accepted');
+
+      // 6. 나눔 완료
+      await sharingRepo.updateStatus(requestId, 'completed');
+      doc = await fakeFirestore.collection('sharing_requests').doc(requestId).get();
+      expect(doc.data()!['status'], 'completed');
+      expect(doc.data()!['completedAt'], isNotNull);
+
+      // 7. 책 상태를 shared로 변경
+      await bookRepo.updateBook(bookId, {'status': 'shared'});
+      final bookDoc = await fakeFirestore.collection('books').doc(bookId).get();
+      expect(bookDoc.data()!['status'], 'shared');
+
+      // 8. 나눔 목록에서 사라짐 (status != available)
+      final sharingListAfter = await bookRepo.watchSharingListings().first;
+      expect(sharingListAfter.any((b) => b.id == bookId), false);
+    });
+
+    test('나눔 요청 거절 플로우', () async {
+      final requestId = await sharingRepo.createSharingRequest(SharingRequestModel(
+        id: '', requesterUid: 'req1', ownerUid: 'own1',
+        bookId: 'book1', bookTitle: '거절될 나눔', status: 'pending',
+        createdAt: DateTime.now(), updatedAt: DateTime.now(),
+      ));
+
+      await sharingRepo.updateStatus(requestId, 'rejected');
+
+      final doc = await fakeFirestore.collection('sharing_requests').doc(requestId).get();
+      expect(doc.data()!['status'], 'rejected');
+      expect(doc.data()!['completedAt'], isNull); // 거절은 completedAt 없음
+    });
+  });
+
+  group('기증 전체 플로우 통합 테스트', () {
+    late BookRepository bookRepo;
+    late DonationRepository donationRepo;
+
+    setUp(() {
+      bookRepo = BookRepository(firestore: fakeFirestore);
+      donationRepo = DonationRepository(firestore: fakeFirestore);
+    });
+
+    test('기관 등록 → 책 기증 → 상태 변경 전체 플로우', () async {
+      // 1. 관리자가 기관 등록
+      final orgId = await donationRepo.createOrganization(OrganizationModel(
+        id: '', name: '서울도서관', description: '서울시 대표 도서관',
+        address: '서울 중구 세종대로 110', category: 'library',
+        isActive: true, createdAt: DateTime.now(),
+      ));
+      expect(orgId, isNotEmpty);
+
+      // 2. 기관 목록 확인
+      final orgs = await donationRepo.getOrganizations();
+      expect(orgs.length, 1);
+      expect(orgs.first.name, '서울도서관');
+
+      // 3. 사용자가 기증할 책 등록
+      final bookId = await bookRepo.createBook(BookModel(
+        id: '', ownerUid: 'donor1', bookInfoId: 'isbn_donate_flow',
+        title: '기증할 프로그래밍 책', author: '개발자',
+        condition: 'good', status: 'available', listingType: 'donation',
+        genre: '컴퓨터', location: '서울',
+        geoPoint: _defaultGeoPoint,
+        viewCount: 0, wishCount: 0, requestCount: 0,
+        publisher: '한빛미디어', pubDate: '2023-03-15',
+        description: 'Flutter 프로그래밍 입문서', originalPrice: 32000,
+        createdAt: DateTime.now(), updatedAt: DateTime.now(),
+      ));
+
+      // 4. 기증 요청 생성
+      final donationId = await donationRepo.createDonation(DonationModel(
+        id: '', donorUid: 'donor1', bookId: bookId,
+        bookTitle: '기증할 프로그래밍 책',
+        organizationId: orgId, organizationName: '서울도서관',
+        status: 'pending', message: '도서관에 기증합니다',
+        createdAt: DateTime.now(), updatedAt: DateTime.now(),
+      ));
+      expect(donationId, isNotEmpty);
+
+      // 5. 기증 내역 확인
+      final donations = await donationRepo.watchUserDonations('donor1').first;
+      expect(donations.length, 1);
+      expect(donations.first.organizationName, '서울도서관');
+
+      // 6. 기관이 수락
+      await donationRepo.updateDonationStatus(donationId, 'accepted');
+
+      // 7. 배송 중
+      await donationRepo.updateDonationStatus(donationId, 'in_transit');
+
+      // 8. 기증 완료
+      await donationRepo.updateDonationStatus(donationId, 'completed');
+      final doc = await fakeFirestore.collection('donations').doc(donationId).get();
+      expect(doc.data()!['status'], 'completed');
+      expect(doc.data()!['completedAt'], isNotNull);
+
+      // 9. 책 상태를 donated로 변경
+      await bookRepo.updateBook(bookId, {'status': 'donated'});
+      final bookDoc = await fakeFirestore.collection('books').doc(bookId).get();
+      expect(bookDoc.data()!['status'], 'donated');
+
+      // 10. 책에 상세정보가 함께 저장되었는지 확인
+      final book = BookModel.fromFirestore(bookDoc);
+      expect(book.publisher, '한빛미디어');
+      expect(book.originalPrice, 32000);
+      expect(book.description, contains('Flutter'));
+    });
+
+    test('여러 기관에 여러 책 기증', () async {
+      // 기관 2개 등록
+      final org1Id = await donationRepo.createOrganization(OrganizationModel(
+        id: '', name: '도서관A', description: '', address: '서울',
+        category: 'library', isActive: true, createdAt: DateTime.now(),
+      ));
+      final org2Id = await donationRepo.createOrganization(OrganizationModel(
+        id: '', name: '학교B', description: '', address: '부산',
+        category: 'school', isActive: true, createdAt: DateTime.now(),
+      ));
+
+      // 한 유저가 2권 기증
+      await donationRepo.createDonation(DonationModel(
+        id: '', donorUid: 'donor1', bookId: 'book1', bookTitle: '기증1',
+        organizationId: org1Id, organizationName: '도서관A', status: 'pending',
+        createdAt: DateTime.now(), updatedAt: DateTime.now(),
+      ));
+      await donationRepo.createDonation(DonationModel(
+        id: '', donorUid: 'donor1', bookId: 'book2', bookTitle: '기증2',
+        organizationId: org2Id, organizationName: '학교B', status: 'pending',
+        createdAt: DateTime.now(), updatedAt: DateTime.now(),
+      ));
+
+      final donations = await donationRepo.watchUserDonations('donor1').first;
+      expect(donations.length, 2);
+
+      // 기관별 기증 확인
+      expect(donations.any((d) => d.organizationName == '도서관A'), true);
+      expect(donations.any((d) => d.organizationName == '학교B'), true);
+    });
+
+    test('기관 비활성화(soft delete) 후 목록에서 제외', () async {
+      final orgId = await donationRepo.createOrganization(OrganizationModel(
+        id: '', name: '삭제될 기관', description: '', address: '',
+        category: 'ngo', isActive: true, createdAt: DateTime.now(),
+      ));
+
+      var orgs = await donationRepo.getOrganizations();
+      expect(orgs.length, 1);
+
+      await donationRepo.deleteOrganization(orgId);
+
+      orgs = await donationRepo.getOrganizations();
+      expect(orgs.length, 0);
+
+      // 실제 문서는 남아있음 (soft delete)
+      final doc = await fakeFirestore.collection('organizations').doc(orgId).get();
+      expect(doc.exists, true);
+      expect(doc.data()!['isActive'], false);
+    });
+  });
+
+  group('시드 데이터 시뮬레이션 테스트', () {
+    late DonationRepository donationRepo;
+
+    setUp(() {
+      donationRepo = DonationRepository(firestore: fakeFirestore);
+    });
+
+    test('5개 기관 시드 데이터 등록 및 조회', () async {
+      final seeds = [
+        OrganizationModel(id: '', name: '서울도서관', description: '서울특별시 대표 공공도서관', address: '서울 중구 세종대로 110', category: 'library', isActive: true, createdAt: DateTime.now()),
+        OrganizationModel(id: '', name: '국립중앙도서관', description: '대한민국 국가 대표 도서관', address: '서울 서초구 반포대로 201', category: 'library', isActive: true, createdAt: DateTime.now()),
+        OrganizationModel(id: '', name: '한국어린이재단', description: '어린이 교육과 복지를 위한 재단', address: '서울 종로구 창경궁로 215', category: 'ngo', isActive: true, createdAt: DateTime.now()),
+        OrganizationModel(id: '', name: '아름다운가게', description: '나눔과 순환의 사회적기업', address: '서울 종로구 자하문로 77', category: 'ngo', isActive: true, createdAt: DateTime.now()),
+        OrganizationModel(id: '', name: '서울대학교 도서관', description: '서울대학교 중앙도서관', address: '서울 관악구 관악로 1', category: 'school', isActive: true, createdAt: DateTime.now()),
+      ];
+
+      for (final org in seeds) {
+        await donationRepo.createOrganization(org);
+      }
+
+      // 전체 조회
+      final all = await donationRepo.getOrganizations();
+      expect(all.length, 5);
+
+      // 카테고리별
+      final libraries = await donationRepo.getOrganizations(category: 'library');
+      expect(libraries.length, 2);
+
+      final ngos = await donationRepo.getOrganizations(category: 'ngo');
+      expect(ngos.length, 2);
+
+      final schools = await donationRepo.getOrganizations(category: 'school');
+      expect(schools.length, 1);
+      expect(schools.first.name, '서울대학교 도서관');
     });
   });
 }
