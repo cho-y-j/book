@@ -23,12 +23,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // 필터에 따라 다른 프로바이더 사용
+    // 판매 탭만 별도 프로바이더, 전체/교환은 동일 프로바이더 + 클라이언트 필터
+    // (기존 책에 listingType 필드가 없어서 서버 필터 불가)
     final booksAsync = _listingFilter == 'sale'
         ? ref.watch(saleListingsProvider(_selectedGenre))
-        : _listingFilter == 'exchange'
-            ? ref.watch(exchangeListingsProvider(_selectedGenre))
-            : ref.watch(availableBooksProvider(_selectedGenre));
+        : ref.watch(availableBooksProvider(_selectedGenre));
 
     return Scaffold(
       appBar: AppBar(
@@ -84,7 +83,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             const SizedBox(height: 8),
             TextButton(onPressed: () => ref.invalidate(availableBooksProvider(_selectedGenre)), child: const Text('다시 시도')),
           ])),
-          data: (books) {
+          data: (allBooks) {
+            // 교환 탭: 판매 전용(sale) 제외 (기존 책은 listingType 없으므로 교환 취급)
+            final books = _listingFilter == 'exchange'
+                ? allBooks.where((b) => b.listingType != 'sale').toList()
+                : allBooks;
             if (books.isEmpty) {
               return Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
                 const Icon(Icons.menu_book, size: 64, color: AppColors.divider),

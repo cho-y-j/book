@@ -237,13 +237,18 @@ final appRouter = GoRouter(
     GoRoute(path: AppRoutes.purchaseRequest, builder: (_, state) => PurchaseRequestScreen(bookId: state.pathParameters['bookId']!)),
     GoRoute(path: AppRoutes.incomingPurchaseRequests, builder: (_, __) => const IncomingPurchaseRequestsScreen()),
 
-    // === Admin ===
-    GoRoute(path: AppRoutes.adminDashboard, builder: (_, __) => const AdminDashboardScreen()),
-    GoRoute(path: AppRoutes.adminUsers, builder: (_, __) => const AdminUserListScreen()),
-    GoRoute(path: AppRoutes.adminUserDetail, builder: (_, state) => AdminUserDetailScreen(userId: state.pathParameters['userId']!)),
-    GoRoute(path: AppRoutes.adminDealers, builder: (_, __) => const AdminDealerScreen()),
-    GoRoute(path: AppRoutes.adminBooks, builder: (_, __) => const AdminBookListScreen()),
-    GoRoute(path: AppRoutes.adminReports, builder: (_, __) => const AdminReportScreen()),
+    // === Admin (nested to avoid GoRouter duplicate key issues) ===
+    GoRoute(
+      path: AppRoutes.adminDashboard,
+      builder: (_, __) => const AdminDashboardScreen(),
+      routes: [
+        GoRoute(path: 'users', builder: (_, __) => const AdminUserListScreen()),
+        GoRoute(path: 'user/:userId', builder: (_, state) => AdminUserDetailScreen(userId: state.pathParameters['userId']!)),
+        GoRoute(path: 'dealers', builder: (_, __) => const AdminDealerScreen()),
+        GoRoute(path: 'books', builder: (_, __) => const AdminBookListScreen()),
+        GoRoute(path: 'reports', builder: (_, __) => const AdminReportScreen()),
+      ],
+    ),
 
     // === Dealer ===
     GoRoute(path: AppRoutes.dealerRequest, builder: (_, __) => const DealerRequestScreen()),
