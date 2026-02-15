@@ -232,6 +232,14 @@
       ]
     },
     {
+      "collectionGroup": "books",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "title", "order": "ASCENDING" }
+      ]
+    },
+    {
       "collectionGroup": "wishlists",
       "queryScope": "COLLECTION",
       "fields": [

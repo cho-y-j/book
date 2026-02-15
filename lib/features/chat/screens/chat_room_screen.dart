@@ -287,28 +287,22 @@ class _ChatRoomScreenState extends ConsumerState<ChatRoomScreen> {
                           children: templates.map((text) {
                             return Padding(
                               padding: const EdgeInsets.only(right: 8),
-                              child: GestureDetector(
-                                onTap: () => _sendMessage(text),
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 14,
-                                    vertical: 8,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: AppColors.primary.withOpacity(0.1),
-                                    border: Border.all(
-                                      color: AppColors.primary.withOpacity(0.4),
-                                    ),
-                                    borderRadius: BorderRadius.circular(20),
-                                  ),
-                                  child: Text(
-                                    text,
-                                    style: AppTypography.bodySmall.copyWith(
-                                      color: AppColors.primary,
-                                      fontWeight: FontWeight.w600,
-                                    ),
+                              child: ActionChip(
+                                label: Text(
+                                  text,
+                                  style: AppTypography.bodySmall.copyWith(
+                                    color: AppColors.primary,
+                                    fontWeight: FontWeight.w600,
                                   ),
                                 ),
+                                backgroundColor: AppColors.primary.withOpacity(0.1),
+                                side: BorderSide(
+                                  color: AppColors.primary.withOpacity(0.4),
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(20),
+                                ),
+                                onPressed: () => _sendMessage(text),
                               ),
                             );
                           }).toList(),
