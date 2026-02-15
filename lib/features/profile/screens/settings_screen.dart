@@ -6,6 +6,7 @@ import '../../../app/routes.dart';
 import '../../../app/theme/app_colors.dart';
 import '../../../app/theme/app_typography.dart';
 import '../../../core/services/storage_service.dart';
+import '../../../core/services/location_service.dart';
 import '../../../providers/auth_providers.dart';
 import '../../../providers/user_providers.dart';
 
@@ -30,16 +31,68 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     if (mounted) setState(() => _autoLogin = _storage.autoLogin);
   }
 
+  bool _gpsLoading = false;
+
+  Future<void> _detectGps(TextEditingController ctrl) async {
+    setState(() => _gpsLoading = true);
+    try {
+      final locationService = LocationService();
+      final position = await locationService.getCurrentPosition();
+      final geo = await locationService.reverseGeocode(position.latitude, position.longitude);
+      final address = geo['fullAddress'] ?? '';
+      if (address.isNotEmpty) {
+        ctrl.text = address;
+        // 자동 저장
+        final uid = ref.read(currentUserProvider)?.uid;
+        if (uid != null) {
+          await ref.read(userRepositoryProvider).updateUser(uid, {
+            'primaryLocation': address,
+            'geoPoint': {'latitude': position.latitude, 'longitude': position.longitude},
+          });
+          ref.invalidate(currentUserProfileProvider);
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('위치 감지 실패: $e'), backgroundColor: AppColors.error),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _gpsLoading = false);
+    }
+  }
+
   void _showLocationDialog() {
     final ctrl = TextEditingController();
+    final userLocation = ref.read(currentUserProfileProvider).value?.primaryLocation;
+    if (userLocation != null && userLocation.isNotEmpty) {
+      ctrl.text = userLocation;
+    }
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('지역 설정'),
-        content: TextField(
-          controller: ctrl,
-          decoration: const InputDecoration(hintText: '예: 서울시 강남구', labelText: '지역'),
-          autofocus: true,
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: ctrl,
+              decoration: const InputDecoration(hintText: '예: 서울시 강남구', labelText: '지역'),
+              autofocus: true,
+            ),
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                icon: _gpsLoading
+                    ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                    : const Icon(Icons.my_location),
+                label: Text(_gpsLoading ? 'GPS 감지 중...' : 'GPS로 자동 감지'),
+                onPressed: _gpsLoading ? null : () => _detectGps(ctrl),
+              ),
+            ),
+          ],
         ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('취소')),

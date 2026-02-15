@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import '../core/services/notification_service.dart';
 // Auth
 import '../features/auth/screens/splash_screen.dart';
 import '../features/auth/screens/onboarding_screen.dart';
@@ -185,6 +186,19 @@ class AppRoutes {
 
 final appRouter = GoRouter(
   initialLocation: AppRoutes.splash,
+  redirect: (context, state) {
+    // 포그라운드에서 알림 탭 시 pendingRoute 처리
+    final pending = NotificationService.pendingRoute;
+    if (pending != null && pending.isNotEmpty && state.uri.toString() != pending) {
+      // 로그인된 상태에서만 (splash/login/signup이 아닌 경우)
+      final currentPath = state.uri.toString();
+      if (currentPath != '/' && currentPath != '/login' && currentPath != '/signup' && currentPath != '/onboarding') {
+        NotificationService.pendingRoute = null;
+        return pending;
+      }
+    }
+    return null;
+  },
   routes: [
     // === Auth ===
     GoRoute(path: AppRoutes.splash, builder: (_, __) => const SplashScreen()),

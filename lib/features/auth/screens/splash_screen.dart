@@ -5,6 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../../../app/routes.dart';
 import '../../../app/theme/app_colors.dart';
 import '../../../core/services/storage_service.dart';
+import '../../../core/services/notification_service.dart';
 
 class SplashScreen extends ConsumerStatefulWidget {
   const SplashScreen({super.key});
@@ -35,8 +36,15 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
     if (!mounted) return;
 
     if (authUser != null && storage.autoLogin) {
-      // 자동 로그인 ON + 기존 세션 존재 → 홈으로
-      context.go(AppRoutes.home);
+      // 자동 로그인 ON + 기존 세션 존재
+      // 푸시 알림으로 열린 경우 해당 화면으로 이동
+      final pendingRoute = NotificationService.pendingRoute;
+      if (pendingRoute != null && pendingRoute.isNotEmpty) {
+        NotificationService.pendingRoute = null;
+        context.go(pendingRoute);
+      } else {
+        context.go(AppRoutes.home);
+      }
     } else {
       // 자동 로그인 OFF이거나 세션 없음
       if (authUser != null && !storage.autoLogin) {

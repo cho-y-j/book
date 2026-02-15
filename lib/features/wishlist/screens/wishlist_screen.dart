@@ -23,6 +23,67 @@ class WishlistScreen extends ConsumerWidget {
     );
   }
 
+  void _showItemOptions(BuildContext context, WidgetRef ref, WishlistModel item) {
+    showModalBottomSheet(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Container(
+            width: 40, height: 4,
+            margin: const EdgeInsets.symmetric(vertical: 12),
+            decoration: BoxDecoration(color: AppColors.divider, borderRadius: BorderRadius.circular(2)),
+          ),
+          ListTile(
+            leading: const Icon(Icons.menu_book, color: AppColors.primary),
+            title: const Text('이 책 검색하기'),
+            subtitle: Text(item.title, maxLines: 1, overflow: TextOverflow.ellipsis),
+            onTap: () {
+              Navigator.pop(ctx);
+              // bookInfoId로 책 상세 검색 시도
+              context.push(AppRoutes.search);
+            },
+          ),
+          ListTile(
+            leading: Icon(
+              item.alertEnabled ? Icons.notifications_active : Icons.notifications_none,
+              color: item.alertEnabled ? AppColors.info : AppColors.textSecondary,
+            ),
+            title: Text(item.alertEnabled ? '알림 설정 변경' : '알림 켜기'),
+            onTap: () {
+              Navigator.pop(ctx);
+              _showAlertDialog(context, ref, item);
+            },
+          ),
+          ListTile(
+            leading: Icon(Icons.delete_outline, color: AppColors.error),
+            title: Text('위시리스트에서 삭제', style: TextStyle(color: AppColors.error)),
+            onTap: () async {
+              Navigator.pop(ctx);
+              final confirmed = await showDialog<bool>(
+                context: context,
+                builder: (dCtx) => AlertDialog(
+                  title: const Text('삭제 확인'),
+                  content: Text('"${item.title}"을(를) 위시리스트에서 삭제할까요?'),
+                  actions: [
+                    TextButton(onPressed: () => Navigator.pop(dCtx, false), child: const Text('취소')),
+                    TextButton(
+                      onPressed: () => Navigator.pop(dCtx, true),
+                      child: Text('삭제', style: TextStyle(color: AppColors.error)),
+                    ),
+                  ],
+                ),
+              );
+              if (confirmed == true) {
+                ref.read(wishlistRepositoryProvider).removeWishlist(item.id);
+              }
+            },
+          ),
+          const SizedBox(height: 8),
+        ]),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final wishlistAsync = ref.watch(userWishlistsProvider);
@@ -49,6 +110,22 @@ class WishlistScreen extends ConsumerWidget {
               return Dismissible(
                 key: Key(item.id),
                 direction: DismissDirection.endToStart,
+                confirmDismiss: (_) async {
+                  return await showDialog<bool>(
+                    context: context,
+                    builder: (dCtx) => AlertDialog(
+                      title: const Text('삭제 확인'),
+                      content: Text('"${item.title}"을(를) 위시리스트에서 삭제할까요?'),
+                      actions: [
+                        TextButton(onPressed: () => Navigator.pop(dCtx, false), child: const Text('취소')),
+                        TextButton(
+                          onPressed: () => Navigator.pop(dCtx, true),
+                          child: Text('삭제', style: TextStyle(color: AppColors.error)),
+                        ),
+                      ],
+                    ),
+                  ) ?? false;
+                },
                 background: Container(
                   alignment: Alignment.centerRight,
                   padding: const EdgeInsets.only(right: 20),
@@ -62,7 +139,13 @@ class WishlistScreen extends ConsumerWidget {
                   margin: const EdgeInsets.only(bottom: 8),
                   child: InkWell(
                     borderRadius: BorderRadius.circular(AppDimensions.radiusMD),
-                    onTap: () => context.push(AppRoutes.search),
+                    onTap: () {
+                      // bookInfoId가 ISBN이면 책 검색, 아니면 bookId로 상세
+                      if (item.bookInfoId.isNotEmpty) {
+                        context.push(AppRoutes.bookDetailPath(item.bookInfoId));
+                      }
+                    },
+                    onLongPress: () => _showItemOptions(context, ref, item),
                     child: Padding(
                       padding: const EdgeInsets.all(12),
                       child: Row(children: [
@@ -125,7 +208,12 @@ class WishlistScreen extends ConsumerWidget {
                           tooltip: '알림 설정',
                           onPressed: () => _showAlertDialog(context, ref, item),
                         ),
-                        Icon(Icons.favorite, color: AppColors.error, size: 20),
+                        // 더보기 메뉴 (삭제/수정)
+                        IconButton(
+                          icon: const Icon(Icons.more_vert, size: 20, color: AppColors.textSecondary),
+                          tooltip: '더보기',
+                          onPressed: () => _showItemOptions(context, ref, item),
+                        ),
                       ]),
                     ),
                   ),
