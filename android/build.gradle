@@ -13,6 +13,20 @@ subprojects {
     project.evaluationDependsOn(":app")
 }
 
+// Provide flutter SDK version properties to all subprojects (for plugins that reference flutter.compileSdkVersion)
+subprojects {
+    project.ext {
+        set("flutter", [
+            compileSdkVersion: 35,
+            minSdkVersion    : 23,
+            targetSdkVersion : 35,
+            ndkVersion       : "27.0.12077973",
+            versionCode      : 1,
+            versionName      : "1.0.0",
+        ])
+    }
+}
+
 tasks.register("clean", Delete) {
     delete rootProject.buildDir
 }
