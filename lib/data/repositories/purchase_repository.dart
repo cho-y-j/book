@@ -27,6 +27,13 @@ class PurchaseRepository {
     await _purchaseRef.doc(requestId).update(data);
   }
 
+  Future<void> updateChatRoomId(String requestId, String chatRoomId) async {
+    await _purchaseRef.doc(requestId).update({
+      'chatRoomId': chatRoomId,
+      'updatedAt': Timestamp.now(),
+    });
+  }
+
   Stream<List<PurchaseRequestModel>> watchIncomingRequests(String sellerUid) {
     return _purchaseRef
         .where('sellerUid', isEqualTo: sellerUid)

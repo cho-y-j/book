@@ -17,6 +17,8 @@ import 'package:book_bridge/data/repositories/donation_repository.dart';
 import 'package:book_bridge/data/repositories/chat_repository.dart';
 import 'package:book_bridge/core/utils/quick_reply_helper.dart';
 import 'package:book_bridge/core/utils/auto_greeting_helper.dart';
+import 'package:book_bridge/core/utils/location_helper.dart';
+import 'package:book_bridge/data/repositories/user_repository.dart';
 
 const _defaultGeoPoint = GeoPoint(37.5665, 126.9780);
 
@@ -473,14 +475,14 @@ void main() {
           'createdAt': Timestamp.now(), 'lastActiveAt': Timestamp.now(),
         },
         {
-          'email': 'dealer1@test.com', 'nickname': '업자1', 'role': 'dealer',
+          'email': 'dealer1@test.com', 'nickname': '파트너1', 'role': 'partner',
           'dealerStatus': 'approved', 'dealerName': '중고서점A',
           'status': 'active', 'bookTemperature': 40.0, 'totalExchanges': 5,
           'totalSales': 20, 'level': 4, 'points': 1000, 'badges': ['dealer'],
           'createdAt': Timestamp.now(), 'lastActiveAt': Timestamp.now(),
         },
         {
-          'email': 'dealer2@test.com', 'nickname': '업자2', 'role': 'dealer',
+          'email': 'dealer2@test.com', 'nickname': '파트너2', 'role': 'partner',
           'dealerStatus': 'pending', 'dealerName': '북마켓',
           'status': 'active', 'bookTemperature': 36.5, 'totalExchanges': 0,
           'totalSales': 0, 'level': 1, 'points': 0, 'badges': [],
@@ -513,25 +515,25 @@ void main() {
     });
 
     test('역할별 유저 필터', () async {
-      final dealers = await adminRepo.getAllUsers(role: 'dealer');
-      expect(dealers.length, 2);
-      expect(dealers.every((u) => u.role == 'dealer'), true);
+      final partners = await adminRepo.getAllUsers(role: 'partner');
+      expect(partners.length, 2);
+      expect(partners.every((u) => u.role == 'partner'), true);
     });
 
     test('대기 중인 업자 요청', () async {
-      final pending = await adminRepo.getPendingDealerRequests();
+      final pending = await adminRepo.getPendingPartnerRequests();
       expect(pending.length, 1);
       expect(pending.first.dealerName, '북마켓');
       expect(pending.first.dealerStatus, 'pending');
     });
 
     test('업자 승인', () async {
-      final pending = await adminRepo.getPendingDealerRequests();
+      final pending = await adminRepo.getPendingPartnerRequests();
       final dealerDoc = await fakeFirestore.collection('users')
           .where('dealerStatus', isEqualTo: 'pending').get();
       final dealerId = dealerDoc.docs.first.id;
 
-      await adminRepo.approveDealerRequest(dealerId);
+      await adminRepo.approvePartnerRequest(dealerId);
 
       final doc = await fakeFirestore.collection('users').doc(dealerId).get();
       expect(doc.data()!['dealerStatus'], 'approved');
@@ -542,7 +544,7 @@ void main() {
           .where('dealerStatus', isEqualTo: 'pending').get();
       final dealerId = dealerDoc.docs.first.id;
 
-      await adminRepo.rejectDealerRequest(dealerId);
+      await adminRepo.rejectPartnerRequest(dealerId);
 
       final doc = await fakeFirestore.collection('users').doc(dealerId).get();
       expect(doc.data()!['role'], 'user');
@@ -739,7 +741,7 @@ void main() {
       expect(userDoc.data()!['dealerStatus'], 'pending');
 
       // 3. 관리자가 승인
-      await adminRepo.approveDealerRequest('new_dealer');
+      await adminRepo.approvePartnerRequest('new_dealer');
 
       userDoc = await userRef.get();
       expect(userDoc.data()!['dealerStatus'], 'approved');
@@ -784,7 +786,7 @@ void main() {
         'lastActiveAt': Timestamp.now(),
       });
 
-      await adminRepo.rejectDealerRequest('reject_dealer');
+      await adminRepo.rejectPartnerRequest('reject_dealer');
 
       final userDoc = await userRef.get();
       expect(userDoc.data()!['role'], 'user');
@@ -1707,32 +1709,47 @@ void main() {
   });
 
   group('QuickReplyHelper 테스트', () {
-    test('sharing 빠른 답변 템플릿', () {
-      final templates = QuickReplyHelper.getTemplates('sharing');
+    test('sharing 요청자 빠른 답변 템플릿', () {
+      final templates = QuickReplyHelper.getTemplates('sharing', isRequester: true);
       expect(templates, hasLength(5));
       expect(templates.first, contains('나눔'));
-      expect(templates, contains('네, 가능해요'));
     });
 
-    test('donation 빠른 답변 템플릿', () {
-      final templates = QuickReplyHelper.getTemplates('donation');
+    test('sharing 제공자 빠른 답변 템플릿', () {
+      final templates = QuickReplyHelper.getTemplates('sharing', isRequester: false);
+      expect(templates, hasLength(5));
+      expect(templates.first, contains('나눔 가능'));
+    });
+
+    test('donation 요청자 빠른 답변 템플릿', () {
+      final templates = QuickReplyHelper.getTemplates('donation', isRequester: true);
       expect(templates, hasLength(5));
       expect(templates.first, contains('기증'));
-      expect(templates, contains('택배로 보내드릴게요'));
     });
 
-    test('exchange 빠른 답변 템플릿', () {
-      final templates = QuickReplyHelper.getTemplates('exchange');
+    test('exchange 요청자 빠른 답변 템플릿', () {
+      final templates = QuickReplyHelper.getTemplates('exchange', isRequester: true);
       expect(templates, hasLength(5));
       expect(templates.first, contains('안녕하세요'));
       expect(templates, contains('직거래 가능하세요?'));
     });
 
-    test('sale 빠른 답변 템플릿', () {
-      final templates = QuickReplyHelper.getTemplates('sale');
+    test('exchange 제공자 빠른 답변 템플릿', () {
+      final templates = QuickReplyHelper.getTemplates('exchange', isRequester: false);
+      expect(templates, hasLength(5));
+      expect(templates.first, contains('감사'));
+    });
+
+    test('sale 요청자 빠른 답변 템플릿', () {
+      final templates = QuickReplyHelper.getTemplates('sale', isRequester: true);
       expect(templates, hasLength(5));
       expect(templates.first, contains('구매'));
-      expect(templates, contains('혹시 가격 조정이 가능한가요?'));
+    });
+
+    test('sale 제공자 빠른 답변 템플릿', () {
+      final templates = QuickReplyHelper.getTemplates('sale', isRequester: false);
+      expect(templates, hasLength(5));
+      expect(templates.first, contains('감사'));
     });
 
     test('unknown 타입 기본 템플릿', () {
@@ -2385,6 +2402,361 @@ void main() {
       final schools = await donationRepo.getOrganizations(category: 'school');
       expect(schools.length, 1);
       expect(schools.first.name, '서울대학교 도서관');
+    });
+  });
+
+  // ===== 판매 수락 → 채팅 연계 테스트 =====
+  group('판매 수락 → 채팅 연계 통합 플로우', () {
+    test('판매 수락 → 채팅방 생성 → chatRoomId 업데이트', () async {
+      final fakeFs = FakeFirebaseFirestore();
+      final chatRepo = ChatRepository(firestore: fakeFs);
+      final purchaseRepo = PurchaseRepository(firestore: fakeFs);
+
+      // 1. 구매 요청 생성
+      final purchaseReq = PurchaseRequestModel(
+        id: '',
+        buyerUid: 'buyer1',
+        sellerUid: 'seller1',
+        bookId: 'book1',
+        bookTitle: '판매 책',
+        price: 15000,
+        status: 'pending',
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+      );
+      final reqId = await purchaseRepo.createPurchaseRequest(purchaseReq);
+
+      // 2. 수락 처리
+      await purchaseRepo.updateStatus(reqId, 'accepted');
+
+      // 3. 채팅방 생성
+      final greeting = AutoGreetingHelper.getGreeting(
+        transactionType: 'sale',
+        bookTitle: '판매 책',
+        price: 15000,
+      );
+      expect(greeting, contains('판매 책'));
+      expect(greeting, contains('15000'));
+
+      // 4. 직접 채팅방 문서 생성 (FakeFirestore WriteBatch 제한 회피)
+      await fakeFs.collection('chat_rooms').doc('sale_chat_1').set({
+        'participants': ['seller1', 'buyer1'],
+        'transactionType': 'sale',
+        'bookTitle': '판매 책',
+        'bookId': 'book1',
+        'lastMessage': greeting,
+        'lastMessageAt': Timestamp.now(),
+        'createdAt': Timestamp.now(),
+        'matchId': '',
+      });
+
+      // 5. chatRoomId 업데이트
+      await purchaseRepo.updateChatRoomId(reqId, 'sale_chat_1');
+
+      // 6. 검증 - 구매 요청에 chatRoomId 연결됨
+      final updatedDoc = await fakeFs.collection('purchase_requests').doc(reqId).get();
+      expect(updatedDoc.data()!['chatRoomId'], 'sale_chat_1');
+      expect(updatedDoc.data()!['status'], 'accepted');
+
+      // 7. 채팅방에서 거래 컨텍스트 확인
+      final chatDoc = await fakeFs.collection('chat_rooms').doc('sale_chat_1').get();
+      expect(chatDoc.data()!['transactionType'], 'sale');
+      expect(chatDoc.data()!['bookTitle'], '판매 책');
+    });
+
+    test('PurchaseRepository.updateChatRoomId 동작 확인', () async {
+      final fakeFs = FakeFirebaseFirestore();
+      final purchaseRepo = PurchaseRepository(firestore: fakeFs);
+
+      // 구매 요청 생성
+      final reqId = await purchaseRepo.createPurchaseRequest(PurchaseRequestModel(
+        id: '',
+        buyerUid: 'b1',
+        sellerUid: 's1',
+        bookId: 'bk1',
+        bookTitle: 'test',
+        price: 5000,
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+      ));
+
+      // chatRoomId 업데이트
+      await purchaseRepo.updateChatRoomId(reqId, 'chat_abc');
+
+      final doc = await fakeFs.collection('purchase_requests').doc(reqId).get();
+      expect(doc.data()!['chatRoomId'], 'chat_abc');
+    });
+  });
+
+  // ========== 파트너 등록 + 고향 + 기관 확장 테스트 ==========
+
+  group('OrganizationModel 확장 필드 테스트', () {
+    test('새 필드 직렬화/역직렬화', () async {
+      final org = OrganizationModel(
+        id: '',
+        name: '테스트 기관',
+        description: '설명',
+        address: '서울 중구 세종대로 110',
+        category: 'ngo',
+        isActive: true,
+        createdAt: DateTime.now(),
+        geoPoint: const GeoPoint(37.5665, 126.978),
+        wishBooks: ['소설', '과학'],
+        region: '서울특별시',
+        subRegion: '중구',
+        contactPhone: '02-1234-5678',
+        operatingHours: '09:00 - 18:00',
+        ownerUid: 'partner_uid_1',
+      );
+
+      final map = org.toFirestore();
+      expect(map['wishBooks'], ['소설', '과학']);
+      expect(map['region'], '서울특별시');
+      expect(map['subRegion'], '중구');
+      expect(map['contactPhone'], '02-1234-5678');
+      expect(map['operatingHours'], '09:00 - 18:00');
+      expect(map['ownerUid'], 'partner_uid_1');
+      expect(map['geoPoint'], isA<GeoPoint>());
+
+      // Firestore 역직렬화
+      final docRef = await fakeFirestore.collection('organizations').add(map);
+      final snap = await fakeFirestore.collection('organizations').doc(docRef.id).get();
+      final parsed = OrganizationModel.fromFirestore(snap);
+      expect(parsed.wishBooks, ['소설', '과학']);
+      expect(parsed.region, '서울특별시');
+      expect(parsed.ownerUid, 'partner_uid_1');
+    });
+
+    test('copyWith 동작', () {
+      final org = OrganizationModel(
+        id: 'o1',
+        name: '원래',
+        description: '',
+        address: '주소',
+        category: 'library',
+        createdAt: DateTime.now(),
+      );
+      final updated = org.copyWith(
+        name: '수정됨',
+        wishBooks: ['에세이'],
+        region: '경기도',
+      );
+      expect(updated.name, '수정됨');
+      expect(updated.wishBooks, ['에세이']);
+      expect(updated.region, '경기도');
+      expect(updated.id, 'o1'); // 변경 안됨
+    });
+  });
+
+  group('UserModel 고향/파트너 필드 테스트', () {
+    test('고향 필드 직렬화', () async {
+      final user = UserModel(
+        uid: 'u_hometown',
+        nickname: '고향유저',
+        email: 'home@test.com',
+        primaryLocation: '서울시 강남구',
+        geoPoint: _defaultGeoPoint,
+        createdAt: DateTime.now(),
+        lastActiveAt: DateTime.now(),
+        hometown: '전라남도 목포시',
+        hometownRegion: '전라남도',
+        hometownSubRegion: '목포시',
+        partnerType: 'bookstore',
+      );
+
+      final map = user.toFirestore();
+      expect(map['hometown'], '전라남도 목포시');
+      expect(map['hometownRegion'], '전라남도');
+      expect(map['hometownSubRegion'], '목포시');
+      expect(map['partnerType'], 'bookstore');
+
+      await fakeFirestore.collection('users').doc('u_hometown').set(map);
+      final snap = await fakeFirestore.collection('users').doc('u_hometown').get();
+      final parsed = UserModel.fromFirestore(snap);
+      expect(parsed.hometown, '전라남도 목포시');
+      expect(parsed.hometownRegion, '전라남도');
+      expect(parsed.partnerType, 'bookstore');
+    });
+
+    test('copyWith 고향', () {
+      final user = UserModel(
+        uid: 'u1',
+        nickname: 'test',
+        email: 'e@e.com',
+        primaryLocation: '서울',
+        geoPoint: _defaultGeoPoint,
+        createdAt: DateTime.now(),
+        lastActiveAt: DateTime.now(),
+      );
+      final updated = user.copyWith(
+        hometownRegion: '부산광역시',
+        hometownSubRegion: '해운대구',
+        hometown: '부산광역시 해운대구',
+      );
+      expect(updated.hometownRegion, '부산광역시');
+      expect(updated.hometownSubRegion, '해운대구');
+      expect(updated.hometown, '부산광역시 해운대구');
+    });
+  });
+
+  group('LocationHelper 테스트', () {
+    test('koreanRegions 17개', () {
+      expect(LocationHelper.koreanRegions.length, 17);
+      expect(LocationHelper.koreanRegions.contains('서울특별시'), true);
+      expect(LocationHelper.koreanRegions.contains('제주특별자치도'), true);
+    });
+
+    test('extractRegion 정상 추출', () {
+      expect(LocationHelper.extractRegion('서울특별시 중구 세종대로'), '서울특별시');
+      expect(LocationHelper.extractRegion('경기도 수원시 장안구'), '경기도');
+      expect(LocationHelper.extractRegion('전라남도 목포시'), '전라남도');
+    });
+
+    test('extractRegion 축약형', () {
+      expect(LocationHelper.extractRegion('서울 강남구'), '서울특별시');
+      expect(LocationHelper.extractRegion('부산 해운대구'), '부산광역시');
+      expect(LocationHelper.extractRegion('제주 서귀포시'), '제주특별자치도');
+    });
+
+    test('extractSubRegion', () {
+      expect(LocationHelper.extractSubRegion('서울특별시 중구 세종대로'), '중구');
+      expect(LocationHelper.extractSubRegion('경기도 수원시 장안구'), '수원시');
+    });
+  });
+
+  group('기관 지역별 조회 테스트', () {
+    late DonationRepository donationRepo;
+
+    setUp(() async {
+      donationRepo = DonationRepository(firestore: fakeFirestore);
+
+      // 시드 데이터
+      await fakeFirestore.collection('organizations').doc('org_seoul').set({
+        'name': '서울 기관',
+        'description': '',
+        'address': '서울',
+        'category': 'ngo',
+        'isActive': true,
+        'region': '서울특별시',
+        'wishBooks': ['소설'],
+        'createdAt': Timestamp.now(),
+      });
+      await fakeFirestore.collection('organizations').doc('org_busan').set({
+        'name': '부산 기관',
+        'description': '',
+        'address': '부산',
+        'category': 'library',
+        'isActive': true,
+        'region': '부산광역시',
+        'wishBooks': ['과학'],
+        'createdAt': Timestamp.now(),
+      });
+    });
+
+    test('region 필터 쿼리', () async {
+      final seoulOrgs = await donationRepo.getOrganizationsByRegion(region: '서울특별시');
+      expect(seoulOrgs.any((o) => o.name == '서울 기관'), true);
+
+      final allOrgs = await donationRepo.getOrganizationsByRegion();
+      expect(allOrgs.length, greaterThanOrEqualTo(2));
+    });
+
+    test('희망도서 장르 쿼리', () async {
+      final results = await donationRepo.getOrganizationsWantingGenre('소설');
+      expect(results.any((o) => o.name == '서울 기관'), true);
+      expect(results.any((o) => o.name == '부산 기관'), false);
+    });
+
+    test('단일 기관 조회', () async {
+      final org = await donationRepo.getOrganization('org_seoul');
+      expect(org, isNotNull);
+      expect(org!.name, '서울 기관');
+    });
+  });
+
+  group('고향 업데이트 테스트', () {
+    test('updateHometown', () async {
+      final userRepo = UserRepository(firestore: fakeFirestore);
+      await fakeFirestore.collection('users').doc('hometown_user').set({
+        'nickname': '테스터',
+        'email': 'test@test.com',
+        'primaryLocation': '서울',
+        'geoPoint': _defaultGeoPoint,
+        'bookTemperature': 36.5,
+        'totalExchanges': 0,
+        'level': 1,
+        'points': 0,
+        'createdAt': Timestamp.now(),
+        'lastActiveAt': Timestamp.now(),
+      });
+
+      await userRepo.updateHometown('hometown_user', '전라남도 목포시', '전라남도', '목포시');
+
+      final doc = await fakeFirestore.collection('users').doc('hometown_user').get();
+      expect(doc.data()!['hometown'], '전라남도 목포시');
+      expect(doc.data()!['hometownRegion'], '전라남도');
+      expect(doc.data()!['hometownSubRegion'], '목포시');
+    });
+  });
+
+  group('파트너 등록 플로우 테스트', () {
+    test('중고서점 파트너 등록 → 승인', () async {
+      final adminRepo = AdminRepository(firestore: fakeFirestore);
+
+      // 유저 생성 → 파트너 신청
+      final userRef = fakeFirestore.collection('users').doc('partner_bookstore');
+      await userRef.set({
+        'email': 'bookstore@test.com',
+        'nickname': '서점주인',
+        'role': 'partner',
+        'dealerStatus': 'pending',
+        'dealerName': '행복한 서점',
+        'partnerType': 'bookstore',
+        'status': 'active',
+        'bookTemperature': 36.5,
+        'totalExchanges': 0,
+        'totalSales': 0,
+        'level': 1,
+        'points': 0,
+        'badges': [],
+        'createdAt': Timestamp.now(),
+        'lastActiveAt': Timestamp.now(),
+      });
+
+      // 대기 중 확인
+      final pending = await adminRepo.getPendingPartnerRequests();
+      expect(pending.any((u) => u.dealerName == '행복한 서점'), true);
+
+      // 승인
+      await adminRepo.approvePartnerRequest('partner_bookstore');
+      final doc = await userRef.get();
+      expect(doc.data()!['dealerStatus'], 'approved');
+    });
+
+    test('기부단체 파트너 등록 → Organization 생성', () async {
+      final donationRepo = DonationRepository(firestore: fakeFirestore);
+
+      // 기부단체 Organization 생성
+      final org = OrganizationModel(
+        id: '',
+        name: '착한 기부단체',
+        description: '좋은 단체',
+        address: '서울 종로구',
+        category: 'ngo',
+        isActive: false, // 관리자 승인 대기
+        createdAt: DateTime.now(),
+        wishBooks: ['소설', '에세이'],
+        region: '서울특별시',
+        subRegion: '종로구',
+        ownerUid: 'partner_ngo_uid',
+      );
+      final orgId = await donationRepo.createOrganization(org);
+      expect(orgId, isNotEmpty);
+
+      final saved = await donationRepo.getOrganization(orgId);
+      expect(saved!.ownerUid, 'partner_ngo_uid');
+      expect(saved.wishBooks, ['소설', '에세이']);
+      expect(saved.isActive, false);
     });
   });
 }

@@ -130,10 +130,20 @@ enum UserStatus { active, suspended, deleted }
 /// 사용자 역할
 enum UserRole {
   user('일반'),
-  dealer('중고업자'),
+  partner('파트너'),
   admin('관리자');
 
   const UserRole(this.label);
+  final String label;
+}
+
+/// 파트너 유형
+enum PartnerType {
+  bookstore('중고서점'),
+  donationOrg('기부단체'),
+  library('도서관');
+
+  const PartnerType(this.label);
   final String label;
 }
 
@@ -149,13 +159,13 @@ enum ListingType {
   final String label;
 }
 
-/// 업자 승인 상태
-enum DealerStatus {
+/// 파트너 승인 상태
+enum PartnerStatus {
   pending('승인대기'),
   approved('승인됨'),
   suspended('정지');
 
-  const DealerStatus(this.label);
+  const PartnerStatus(this.label);
   final String label;
 }
 

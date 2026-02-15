@@ -10,6 +10,7 @@ import '../../../app/theme/app_dimensions.dart';
 import '../../../app/theme/app_typography.dart';
 import '../../../providers/user_providers.dart';
 import '../../../providers/auth_providers.dart';
+import '../../../core/utils/location_helper.dart';
 
 class EditProfileScreen extends ConsumerStatefulWidget {
   const EditProfileScreen({super.key});
@@ -25,6 +26,8 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
   Uint8List? _newImageBytes;
   String? _currentImageUrl;
   final _picker = ImagePicker();
+  String? _hometownRegion;
+  String? _hometownSubRegion;
 
   @override
   void dispose() {
@@ -64,6 +67,63 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     }
   }
 
+  void _showHometownDialog() {
+    String? selectedRegion = _hometownRegion;
+    final subCtrl = TextEditingController(text: _hometownSubRegion ?? '');
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          title: const Text('고향 설정'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              DropdownButtonFormField<String>(
+                value: selectedRegion,
+                decoration: const InputDecoration(labelText: '시/도'),
+                items: LocationHelper.koreanRegions
+                    .map((r) => DropdownMenuItem(value: r, child: Text(r)))
+                    .toList(),
+                onChanged: (v) => setDialogState(() => selectedRegion = v),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: subCtrl,
+                decoration: const InputDecoration(
+                  labelText: '시/군/구',
+                  hintText: '예: 목포시',
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                setState(() {
+                  _hometownRegion = null;
+                  _hometownSubRegion = null;
+                });
+                Navigator.pop(ctx);
+              },
+              child: const Text('초기화'),
+            ),
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('취소')),
+            ElevatedButton(
+              onPressed: () {
+                setState(() {
+                  _hometownRegion = selectedRegion;
+                  _hometownSubRegion = subCtrl.text.trim().isNotEmpty ? subCtrl.text.trim() : null;
+                });
+                Navigator.pop(ctx);
+              },
+              child: const Text('확인'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   void _showLocationDialog() {
     showDialog(
       context: context,
@@ -100,6 +160,10 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
       final updates = <String, dynamic>{
         'nickname': _nicknameController.text.trim(),
         'primaryLocation': _locationController.text.trim(),
+        if (_hometownRegion != null) 'hometownRegion': _hometownRegion,
+        if (_hometownSubRegion != null) 'hometownSubRegion': _hometownSubRegion,
+        if (_hometownRegion != null && _hometownSubRegion != null)
+          'hometown': '$_hometownRegion $_hometownSubRegion',
       };
 
       // 새 이미지 업로드
@@ -138,6 +202,8 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
       _nicknameController.text = userAsync.value?.nickname ?? '';
       _locationController.text = userAsync.value?.primaryLocation ?? '';
       _currentImageUrl = userAsync.value?.profileImageUrl;
+      _hometownRegion = userAsync.value?.hometownRegion;
+      _hometownSubRegion = userAsync.value?.hometownSubRegion;
       _initialized = true;
     }
 
@@ -201,6 +267,23 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
             ),
             trailing: const Icon(Icons.chevron_right),
             onTap: _showLocationDialog,
+          ),
+          const Divider(),
+          // 고향 설정
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: const Icon(Icons.home_outlined),
+            title: const Text('고향 설정'),
+            subtitle: Text(
+              _hometownRegion != null
+                  ? '$_hometownRegion ${_hometownSubRegion ?? ''}'.trim()
+                  : '미설정 (고향에 책 보내기 기능 활성화)',
+              style: TextStyle(
+                color: _hometownRegion != null ? AppColors.textPrimary : AppColors.textSecondary,
+              ),
+            ),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: _showHometownDialog,
           ),
         ]),
       ),

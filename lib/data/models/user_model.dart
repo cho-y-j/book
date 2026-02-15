@@ -19,11 +19,16 @@ class UserModel {
   final DateTime lastActiveAt;
   final bool isVerified;
   final String status;
-  // 역할 & 업자 관련
-  final String role; // 'user' | 'dealer' | 'admin'
-  final String? dealerStatus; // 'pending' | 'approved' | 'suspended'
-  final String? dealerName; // 업자 상호명
+  // 역할 & 파트너 관련
+  final String role; // 'user' | 'partner' | 'admin'
+  final String? dealerStatus; // 'pending' | 'approved' | 'suspended' (Firestore 키 유지)
+  final String? dealerName; // 파트너 상호명 (Firestore 키 유지)
+  final String? partnerType; // 'bookstore' | 'donationOrg' | 'library'
   final int totalSales; // 판매 완료 수
+  // 고향 관련
+  final String? hometown; // '전라남도 목포시'
+  final String? hometownRegion; // '전라남도'
+  final String? hometownSubRegion; // '목포시'
 
   const UserModel({
     required this.uid,
@@ -47,7 +52,11 @@ class UserModel {
     this.role = 'user',
     this.dealerStatus,
     this.dealerName,
+    this.partnerType,
     this.totalSales = 0,
+    this.hometown,
+    this.hometownRegion,
+    this.hometownSubRegion,
   });
 
   factory UserModel.fromFirestore(DocumentSnapshot doc) {
@@ -74,7 +83,11 @@ class UserModel {
       role: data['role'] ?? 'user',
       dealerStatus: data['dealerStatus'],
       dealerName: data['dealerName'],
+      partnerType: data['partnerType'],
       totalSales: data['totalSales'] ?? 0,
+      hometown: data['hometown'],
+      hometownRegion: data['hometownRegion'],
+      hometownSubRegion: data['hometownSubRegion'],
     );
   }
 
@@ -100,7 +113,11 @@ class UserModel {
       'role': role,
       'dealerStatus': dealerStatus,
       'dealerName': dealerName,
+      'partnerType': partnerType,
       'totalSales': totalSales,
+      'hometown': hometown,
+      'hometownRegion': hometownRegion,
+      'hometownSubRegion': hometownSubRegion,
     };
   }
 
@@ -122,7 +139,11 @@ class UserModel {
     String? role,
     String? dealerStatus,
     String? dealerName,
+    String? partnerType,
     int? totalSales,
+    String? hometown,
+    String? hometownRegion,
+    String? hometownSubRegion,
   }) {
     return UserModel(
       uid: uid,
@@ -146,7 +167,11 @@ class UserModel {
       role: role ?? this.role,
       dealerStatus: dealerStatus ?? this.dealerStatus,
       dealerName: dealerName ?? this.dealerName,
+      partnerType: partnerType ?? this.partnerType,
       totalSales: totalSales ?? this.totalSales,
+      hometown: hometown ?? this.hometown,
+      hometownRegion: hometownRegion ?? this.hometownRegion,
+      hometownSubRegion: hometownSubRegion ?? this.hometownSubRegion,
     );
   }
 }

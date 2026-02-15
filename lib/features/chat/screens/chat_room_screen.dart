@@ -8,8 +8,8 @@ import '../../../providers/auth_providers.dart';
 import '../../../providers/user_providers.dart';
 import '../../../providers/donation_providers.dart';
 import '../../../data/models/message_model.dart';
+import '../../../core/utils/quick_reply_helper.dart';
 import '../widgets/exchange_status_message.dart';
-import '../widgets/quick_reply_bar.dart';
 import '../widgets/delivery_method_card.dart';
 import '../widgets/ai_suggestion_chip.dart';
 
@@ -33,7 +33,7 @@ class _ChatRoomScreenState extends ConsumerState<ChatRoomScreen> {
     super.dispose();
   }
 
-  void _sendMessage([String? text]) {
+  Future<void> _sendMessage([String? text]) async {
     final content = text ?? _messageController.text.trim();
     if (content.isEmpty) return;
     final user = ref.read(currentUserProvider);
@@ -46,10 +46,18 @@ class _ChatRoomScreenState extends ConsumerState<ChatRoomScreen> {
       type: 'text',
       createdAt: DateTime.now(),
     );
-    ref.read(chatRepositoryProvider).sendMessage(message);
     _messageController.clear();
     setState(() => _aiSuggestion = null);
-    _scrollToBottom();
+    try {
+      await ref.read(chatRepositoryProvider).sendMessage(message);
+      _scrollToBottom();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('메시지 전송 실패: $e'), backgroundColor: AppColors.error),
+        );
+      }
+    }
   }
 
   void _scrollToBottom() {
@@ -102,10 +110,8 @@ class _ChatRoomScreenState extends ConsumerState<ChatRoomScreen> {
     final chatRepo = ref.read(chatRepositoryProvider);
     final chatRoom = ref.read(chatRoomDetailProvider(widget.chatRoomId)).value;
 
-    // 채팅방 deliveryMethod 업데이트
     await chatRepo.updateDeliveryMethod(widget.chatRoomId, method);
 
-    // 전달 방법 선택 시스템 메시지
     final methodLabel = switch (method) {
       'courier_request' => '택배 요청',
       'cod_shipping' => '착불 발송',
@@ -119,9 +125,7 @@ class _ChatRoomScreenState extends ConsumerState<ChatRoomScreen> {
       type: 'system',
     );
 
-    // 주소 연계 메시지
     if (method == 'courier_request') {
-      // 사용자 주소 확인
       final userProfile = ref.read(currentUserProfileProvider).value;
       final address = userProfile?.primaryLocation;
       if (address != null && address.isNotEmpty) {
@@ -140,8 +144,6 @@ class _ChatRoomScreenState extends ConsumerState<ChatRoomScreen> {
         );
       }
     } else if (method == 'cod_shipping' || method == 'in_person') {
-      // 기관 주소 표시 - chatRoom의 organizationId로 기관 주소 찾기
-      // 간단히 시스템 메시지로 안내
       if (chatRoom?.organizationId != null) {
         final orgsAsync = ref.read(organizationsStreamProvider);
         final org = orgsAsync.value?.where((o) => o.id == chatRoom!.organizationId).firstOrNull;
@@ -182,6 +184,14 @@ class _ChatRoomScreenState extends ConsumerState<ChatRoomScreen> {
     final chatRoomAsync = ref.watch(chatRoomDetailProvider(widget.chatRoomId));
     final currentUid = ref.watch(currentUserProvider)?.uid;
     final chatRoom = chatRoomAsync.value;
+    // 역할 판단: 첫 번째 participant = 제공자/판매자, 두 번째 = 요청자/구매자
+    final isRequester = chatRoom != null && chatRoom.participants.length >= 2
+        ? currentUid == chatRoom.participants[1]
+        : true;
+    final templates = QuickReplyHelper.getTemplates(
+      chatRoom?.transactionType,
+      isRequester: isRequester,
+    );
 
     return Scaffold(
       appBar: AppBar(
@@ -201,8 +211,20 @@ class _ChatRoomScreenState extends ConsumerState<ChatRoomScreen> {
           child: messagesAsync.when(
             loading: () => const Center(child: CircularProgressIndicator()),
             error: (e, _) => Center(
-              child: Text('메시지를 불러올 수 없습니다',
-                  style: AppTypography.bodyMedium),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.error_outline, size: 48, color: AppColors.error),
+                  const SizedBox(height: 12),
+                  Text('메시지를 불러올 수 없습니다', style: AppTypography.bodyMedium),
+                  const SizedBox(height: 8),
+                  TextButton.icon(
+                    onPressed: () => ref.invalidate(messagesProvider(widget.chatRoomId)),
+                    icon: const Icon(Icons.refresh),
+                    label: const Text('재시도'),
+                  ),
+                ],
+              ),
             ),
             data: (messages) {
               if (messages.isEmpty) {
@@ -226,76 +248,138 @@ class _ChatRoomScreenState extends ConsumerState<ChatRoomScreen> {
           ),
         ),
 
-        // 빠른 답변 바
-        QuickReplyBar(
-          transactionType: chatRoom?.transactionType,
-          onQuickReply: (text) => _sendMessage(text),
-        ),
-
-        // AI 답변 칩
-        if (_aiLoading)
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            child: LinearProgressIndicator(),
-          ),
-        if (_aiSuggestion != null)
-          AiSuggestionChip(
-            suggestion: _aiSuggestion!,
-            onTap: () => _sendMessage(_aiSuggestion),
-            onDismiss: () => setState(() => _aiSuggestion = null),
-          ),
-
-        // 입력바
+        // ===== 하단 고정 영역 (빠른답변 + AI + 입력) =====
         Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
           decoration: BoxDecoration(
             color: AppColors.surface,
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.05),
-                blurRadius: 4,
+                color: Colors.black.withOpacity(0.08),
+                blurRadius: 8,
                 offset: const Offset(0, -2),
               ),
             ],
           ),
           child: SafeArea(
-            child: Row(children: [
-              // AI 버튼
-              IconButton(
-                icon: Icon(
-                  Icons.auto_awesome,
-                  size: 20,
-                  color: _aiLoading ? Colors.grey : Colors.deepPurple,
-                ),
-                onPressed: _aiLoading ? null : _requestAiSuggestion,
-                tooltip: 'AI 답변 추천',
-              ),
-              Expanded(
-                child: TextField(
-                  controller: _messageController,
-                  decoration: InputDecoration(
-                    hintText: '메시지 입력',
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(24),
-                      borderSide: BorderSide.none,
-                    ),
-                    filled: true,
-                    fillColor: AppColors.background,
-                    contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 16, vertical: 8),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // 빠른 답변 칩
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.fromLTRB(12, 10, 12, 6),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        '💬 빠른 답변',
+                        style: AppTypography.caption.copyWith(
+                          color: AppColors.textSecondary,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: Row(
+                          children: templates.map((text) {
+                            return Padding(
+                              padding: const EdgeInsets.only(right: 8),
+                              child: GestureDetector(
+                                onTap: () => _sendMessage(text),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 14,
+                                    vertical: 8,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.primary.withOpacity(0.1),
+                                    border: Border.all(
+                                      color: AppColors.primary.withOpacity(0.4),
+                                    ),
+                                    borderRadius: BorderRadius.circular(20),
+                                  ),
+                                  child: Text(
+                                    text,
+                                    style: AppTypography.bodySmall.copyWith(
+                                      color: AppColors.primary,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            );
+                          }).toList(),
+                        ),
+                      ),
+                    ],
                   ),
-                  onSubmitted: (_) => _sendMessage(),
                 ),
-              ),
-              const SizedBox(width: 8),
-              CircleAvatar(
-                backgroundColor: AppColors.primary,
-                child: IconButton(
-                  icon: const Icon(Icons.send, color: Colors.white, size: 18),
-                  onPressed: () => _sendMessage(),
+
+                // AI 답변 칩
+                if (_aiLoading)
+                  const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                    child: LinearProgressIndicator(),
+                  ),
+                if (_aiSuggestion != null)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    child: AiSuggestionChip(
+                      suggestion: _aiSuggestion!,
+                      onTap: () => _sendMessage(_aiSuggestion),
+                      onDismiss: () => setState(() => _aiSuggestion = null),
+                    ),
+                  ),
+
+                // 구분선
+                Divider(height: 1, color: AppColors.divider),
+
+                // 입력바
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                  child: Row(children: [
+                    // AI 버튼
+                    IconButton(
+                      icon: Icon(
+                        Icons.auto_awesome,
+                        size: 20,
+                        color: _aiLoading ? Colors.grey : Colors.deepPurple,
+                      ),
+                      onPressed: _aiLoading ? null : _requestAiSuggestion,
+                      tooltip: 'AI 답변 추천',
+                    ),
+                    Expanded(
+                      child: TextField(
+                        controller: _messageController,
+                        decoration: InputDecoration(
+                          hintText: '메시지 입력',
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(24),
+                            borderSide: BorderSide.none,
+                          ),
+                          filled: true,
+                          fillColor: AppColors.background,
+                          contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 16, vertical: 8),
+                        ),
+                        onSubmitted: (_) => _sendMessage(),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    CircleAvatar(
+                      backgroundColor: AppColors.primary,
+                      child: IconButton(
+                        icon: const Icon(Icons.send, color: Colors.white, size: 18),
+                        onPressed: () => _sendMessage(),
+                      ),
+                    ),
+                  ]),
                 ),
-              ),
-            ]),
+              ],
+            ),
           ),
         ),
       ]),
@@ -303,12 +387,10 @@ class _ChatRoomScreenState extends ConsumerState<ChatRoomScreen> {
   }
 
   Widget _buildMessage(MessageModel msg, String? currentUid, dynamic chatRoom) {
-    // 시스템/자동인사 메시지
     if (msg.type == 'system' || msg.type == 'auto_greeting') {
       return ExchangeStatusMessage(message: msg.content);
     }
 
-    // 전달 방법 선택 카드
     if (msg.type == 'delivery_select') {
       return DeliveryMethodCard(
         selectedMethod: chatRoom?.deliveryMethod,
@@ -317,7 +399,6 @@ class _ChatRoomScreenState extends ConsumerState<ChatRoomScreen> {
       );
     }
 
-    // 일반 메시지
     final isMe = msg.senderUid == currentUid;
     return Align(
       alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,

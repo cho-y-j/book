@@ -53,4 +53,17 @@ class UserRepository {
       return UserModel.fromFirestore(doc);
     });
   }
+
+  Future<void> updateHometown(
+    String uid,
+    String hometown,
+    String region,
+    String subRegion,
+  ) async {
+    await _usersRef.doc(uid).update({
+      'hometown': hometown,
+      'hometownRegion': region,
+      'hometownSubRegion': subRegion,
+    });
+  }
 }

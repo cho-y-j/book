@@ -15,7 +15,12 @@ final isAdminProvider = Provider<bool>((ref) {
 
 final isDealerProvider = Provider<bool>((ref) {
   final user = ref.watch(currentUserProfileProvider).valueOrNull;
-  return user?.role == 'dealer' && user?.dealerStatus == 'approved';
+  return user?.role == 'partner' && user?.dealerStatus == 'approved';
+});
+
+final isPartnerProvider = Provider<bool>((ref) {
+  final user = ref.watch(currentUserProfileProvider).valueOrNull;
+  return user?.role == 'partner' && user?.dealerStatus == 'approved';
 });
 
 final adminStatsProvider = FutureProvider<Map<String, int>>((ref) async {
@@ -31,7 +36,11 @@ final allBooksAdminProvider = FutureProvider.family<List<BookModel>, String?>((r
 });
 
 final pendingDealerRequestsProvider = FutureProvider<List<UserModel>>((ref) async {
-  return ref.watch(adminRepositoryProvider).getPendingDealerRequests();
+  return ref.watch(adminRepositoryProvider).getPendingPartnerRequests();
+});
+
+final pendingPartnerRequestsProvider = FutureProvider<List<UserModel>>((ref) async {
+  return ref.watch(adminRepositoryProvider).getPendingPartnerRequests();
 });
 
 final pendingReportsProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {

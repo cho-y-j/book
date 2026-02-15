@@ -62,13 +62,16 @@ class MyProfileScreen extends ConsumerWidget {
             _MenuTile(icon: Icons.groups_outlined, title: '동네 책모임', onTap: () => context.push(AppRoutes.bookClubList)),
             _MenuTile(icon: Icons.bar_chart, title: '나의 통계', onTap: () => context.push(AppRoutes.myStats)),
             _MenuTile(icon: Icons.emoji_events_outlined, title: '랭킹', onTap: () => context.push(AppRoutes.ranking)),
-            // 업자 메뉴
+            // 고향 메뉴
+            if (user?.hometownRegion != null)
+              _MenuTile(icon: Icons.home_outlined, title: '고향에 책 보내기 (${user!.hometownRegion})', onTap: () => context.push('${AppRoutes.organizations}?region=${user.hometownRegion}')),
+            // 파트너 메뉴
             if (user?.role == 'user')
-              _MenuTile(icon: Icons.store_outlined, title: '업자 신청', onTap: () => context.push(AppRoutes.dealerRequest)),
-            if (user?.role == 'dealer' && user?.dealerStatus == 'pending')
-              _MenuTile(icon: Icons.hourglass_top, title: '업자 승인 대기 중', onTap: () {}),
-            if (user?.role == 'dealer' && user?.dealerStatus == 'approved')
-              _MenuTile(icon: Icons.store, title: '업자 (승인됨)', onTap: () {}),
+              _MenuTile(icon: Icons.store_outlined, title: '파트너 신청', onTap: () => context.push(AppRoutes.partnerRequest)),
+            if (user?.role == 'partner' && user?.dealerStatus == 'pending')
+              _MenuTile(icon: Icons.hourglass_top, title: '파트너 승인 대기 중', onTap: () {}),
+            if (user?.role == 'partner' && user?.dealerStatus == 'approved')
+              _MenuTile(icon: Icons.store, title: '파트너 (승인됨)', onTap: () {}),
             // 관리자 메뉴 (admin만 표시)
             if (ref.watch(isAdminProvider))
               _MenuTile(icon: Icons.admin_panel_settings, title: '관리자 대시보드', onTap: () => context.push(AppRoutes.adminDashboard)),

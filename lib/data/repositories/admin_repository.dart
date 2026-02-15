@@ -25,7 +25,7 @@ class AdminRepository {
     final purchases = await _firestore.collection(ApiConstants.purchaseRequestsCollection)
         .where('status', isEqualTo: 'completed').count().get();
     final dealers = await _firestore.collection(ApiConstants.usersCollection)
-        .where('role', isEqualTo: 'dealer').count().get();
+        .where('role', isEqualTo: 'partner').count().get();
     final pendingReports = await _firestore.collection(ApiConstants.reportsCollection)
         .where('status', isEqualTo: 'pending').count().get();
 
@@ -34,7 +34,7 @@ class AdminRepository {
       'totalBooks': books.count ?? 0,
       'totalExchanges': exchanges.count ?? 0,
       'totalSales': purchases.count ?? 0,
-      'totalDealers': dealers.count ?? 0,
+      'totalPartners': dealers.count ?? 0,
       'pendingReports': pendingReports.count ?? 0,
     };
   }
@@ -61,25 +61,33 @@ class AdminRepository {
     await _firestore.collection(ApiConstants.usersCollection).doc(uid).update({'status': 'active'});
   }
 
-  // Dealer management
-  Future<List<UserModel>> getPendingDealerRequests() async {
+  // Partner management
+  Future<List<UserModel>> getPendingPartnerRequests() async {
     final snap = await _firestore.collection(ApiConstants.usersCollection)
-        .where('role', isEqualTo: 'dealer')
+        .where('role', isEqualTo: 'partner')
         .where('dealerStatus', isEqualTo: 'pending')
         .get();
     return snap.docs.map((doc) => UserModel.fromFirestore(doc)).toList();
   }
 
-  Future<void> approveDealerRequest(String uid) async {
+  Future<void> approvePartnerRequest(String uid, {String? orgId}) async {
     await _firestore.collection(ApiConstants.usersCollection).doc(uid).update({
       'dealerStatus': 'approved',
     });
+    // 기부단체/도서관이면 Organization도 활성화
+    if (orgId != null) {
+      await _firestore
+          .collection(ApiConstants.organizationsCollection)
+          .doc(orgId)
+          .update({'isActive': true});
+    }
   }
 
-  Future<void> rejectDealerRequest(String uid) async {
+  Future<void> rejectPartnerRequest(String uid) async {
     await _firestore.collection(ApiConstants.usersCollection).doc(uid).update({
       'role': 'user',
       'dealerStatus': null,
+      'partnerType': null,
     });
   }
 

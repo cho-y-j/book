@@ -91,8 +91,8 @@ class AdminDashboardScreen extends ConsumerWidget {
                     ),
                     _StatCard(
                       icon: Icons.store,
-                      value: stats['totalDealers'] ?? 0,
-                      label: '업자 수',
+                      value: stats['totalPartners'] ?? 0,
+                      label: '파트너 수',
                       color: AppColors.warning,
                     ),
                     _StatCard(
@@ -118,9 +118,9 @@ class AdminDashboardScreen extends ConsumerWidget {
               ),
               _NavigationTile(
                 icon: Icons.store_outlined,
-                title: '업자 관리',
-                subtitle: '업자 승인/거절, 활성 업자 관리',
-                onTap: () => context.push('/admin/dealers'),
+                title: '파트너 관리',
+                subtitle: '파트너 승인/거절, 활성 파트너 관리',
+                onTap: () => context.push('/admin/partners'),
               ),
               _NavigationTile(
                 icon: Icons.menu_book_outlined,

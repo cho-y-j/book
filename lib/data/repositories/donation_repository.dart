@@ -78,4 +78,47 @@ class DonationRepository {
   Future<void> deleteOrganization(String orgId) async {
     await _orgsRef.doc(orgId).update({'isActive': false});
   }
+
+  /// 단일 기관 조회
+  Future<OrganizationModel?> getOrganization(String orgId) async {
+    final doc = await _orgsRef.doc(orgId).get();
+    if (!doc.exists) return null;
+    return OrganizationModel.fromFirestore(doc);
+  }
+
+  /// 지역별 기관 조회
+  Future<List<OrganizationModel>> getOrganizationsByRegion({
+    String? region,
+    String? subRegion,
+    String? category,
+  }) async {
+    Query<Map<String, dynamic>> query =
+        _orgsRef.where('isActive', isEqualTo: true);
+    if (region != null) {
+      query = query.where('region', isEqualTo: region);
+    }
+    if (subRegion != null) {
+      query = query.where('subRegion', isEqualTo: subRegion);
+    }
+    if (category != null) {
+      query = query.where('category', isEqualTo: category);
+    }
+    query = query.orderBy('name');
+    final snap = await query.get();
+    return snap.docs
+        .map((doc) => OrganizationModel.fromFirestore(doc))
+        .toList();
+  }
+
+  /// 희망 장르와 매칭되는 기관 조회
+  Future<List<OrganizationModel>> getOrganizationsWantingGenre(
+      String genre) async {
+    final snap = await _orgsRef
+        .where('isActive', isEqualTo: true)
+        .where('wishBooks', arrayContains: genre)
+        .get();
+    return snap.docs
+        .map((doc) => OrganizationModel.fromFirestore(doc))
+        .toList();
+  }
 }

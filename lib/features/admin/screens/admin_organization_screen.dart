@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../app/theme/app_colors.dart';
 import '../../../app/theme/app_typography.dart';
 import '../../../app/theme/app_dimensions.dart';
+import '../../../core/constants/enums.dart';
+import '../../../core/utils/location_helper.dart';
 import '../../../data/models/organization_model.dart';
 import '../../../providers/donation_providers.dart';
 
@@ -111,7 +113,11 @@ class AdminOrganizationScreen extends ConsumerWidget {
     final nameCtrl = TextEditingController();
     final descCtrl = TextEditingController();
     final addrCtrl = TextEditingController();
+    final phoneCtrl = TextEditingController();
+    final hoursCtrl = TextEditingController();
     String category = 'library';
+    String? region;
+    final selectedWish = <String>{};
 
     showDialog(
       context: context,
@@ -124,6 +130,10 @@ class AdminOrganizationScreen extends ConsumerWidget {
           const SizedBox(height: 8),
           TextField(controller: addrCtrl, decoration: const InputDecoration(labelText: '주소')),
           const SizedBox(height: 8),
+          TextField(controller: phoneCtrl, decoration: const InputDecoration(labelText: '전화번호')),
+          const SizedBox(height: 8),
+          TextField(controller: hoursCtrl, decoration: const InputDecoration(labelText: '운영시간', hintText: '09:00 - 18:00')),
+          const SizedBox(height: 8),
           DropdownButtonFormField<String>(
             value: category,
             decoration: const InputDecoration(labelText: '카테고리'),
@@ -134,6 +144,30 @@ class AdminOrganizationScreen extends ConsumerWidget {
             ],
             onChanged: (v) => setDialogState(() => category = v ?? 'library'),
           ),
+          const SizedBox(height: 8),
+          DropdownButtonFormField<String?>(
+            value: region,
+            decoration: const InputDecoration(labelText: '지역'),
+            items: [
+              const DropdownMenuItem(value: null, child: Text('미지정')),
+              ...LocationHelper.koreanRegions.map((r) => DropdownMenuItem(value: r, child: Text(r))),
+            ],
+            onChanged: (v) => setDialogState(() => region = v),
+          ),
+          const SizedBox(height: 8),
+          Align(alignment: Alignment.centerLeft, child: Text('희망 도서 장르', style: AppTypography.labelLarge)),
+          const SizedBox(height: 4),
+          Wrap(spacing: 4, runSpacing: 4, children: BookGenre.values.where((g) => g != BookGenre.all).map((genre) {
+            final sel = selectedWish.contains(genre.label);
+            return FilterChip(
+              label: Text(genre.label, style: const TextStyle(fontSize: 12)),
+              selected: sel,
+              onSelected: (v) => setDialogState(() {
+                if (v) selectedWish.add(genre.label); else selectedWish.remove(genre.label);
+              }),
+              visualDensity: VisualDensity.compact,
+            );
+          }).toList()),
         ])),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('취소')),
@@ -148,6 +182,11 @@ class AdminOrganizationScreen extends ConsumerWidget {
                 category: category,
                 isActive: true,
                 createdAt: DateTime.now(),
+                contactPhone: phoneCtrl.text.trim().isNotEmpty ? phoneCtrl.text.trim() : null,
+                operatingHours: hoursCtrl.text.trim().isNotEmpty ? hoursCtrl.text.trim() : null,
+                region: region,
+                subRegion: LocationHelper.extractSubRegion(addrCtrl.text.trim()),
+                wishBooks: selectedWish.toList(),
               );
               await ref.read(donationRepositoryProvider).createOrganization(org);
               ref.invalidate(organizationsStreamProvider);

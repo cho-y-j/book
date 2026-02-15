@@ -69,8 +69,8 @@ import '../features/admin/screens/admin_dealer_screen.dart';
 import '../features/admin/screens/admin_book_list_screen.dart';
 import '../features/admin/screens/admin_report_screen.dart';
 import '../features/admin/screens/admin_organization_screen.dart';
-// Dealer
-import '../features/dealer/screens/dealer_request_screen.dart';
+// Partner
+import '../features/dealer/screens/partner_request_screen.dart';
 
 class AppRoutes {
   AppRoutes._();
@@ -157,12 +157,14 @@ class AppRoutes {
   static const adminUsers = '/admin/users';
   static const adminUserDetail = '/admin/user/:userId';
   static const adminDealers = '/admin/dealers';
+  static const adminPartners = '/admin/partners';
   static const adminBooks = '/admin/books';
   static const adminReports = '/admin/reports';
   static const adminOrganizations = '/admin/organizations';
 
-  // Dealer
+  // Partner
   static const dealerRequest = '/dealer-request';
+  static const partnerRequest = '/partner-request';
 
   /// Helper to build paths with parameters
   static String bookDetailPath(String bookId) => '/book/$bookId';
@@ -281,14 +283,16 @@ final appRouter = GoRouter(
         GoRoute(path: 'users', builder: (_, __) => const AdminUserListScreen()),
         GoRoute(path: 'user/:userId', builder: (_, state) => AdminUserDetailScreen(userId: state.pathParameters['userId']!)),
         GoRoute(path: 'dealers', builder: (_, __) => const AdminDealerScreen()),
+        GoRoute(path: 'partners', builder: (_, __) => const AdminDealerScreen()),
         GoRoute(path: 'books', builder: (_, __) => const AdminBookListScreen()),
         GoRoute(path: 'reports', builder: (_, __) => const AdminReportScreen()),
         GoRoute(path: 'organizations', builder: (_, __) => const AdminOrganizationScreen()),
       ],
     ),
 
-    // === Dealer ===
-    GoRoute(path: AppRoutes.dealerRequest, builder: (_, __) => const DealerRequestScreen()),
+    // === Partner ===
+    GoRoute(path: AppRoutes.dealerRequest, builder: (_, __) => const PartnerRequestScreen()),
+    GoRoute(path: AppRoutes.partnerRequest, builder: (_, __) => const PartnerRequestScreen()),
   ],
 );
 

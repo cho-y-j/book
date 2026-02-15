@@ -8,19 +8,37 @@ import '../../../providers/admin_providers.dart';
 class AdminDealerScreen extends ConsumerWidget {
   const AdminDealerScreen({super.key});
 
+  String _partnerTypeLabel(String? type) {
+    switch (type) {
+      case 'bookstore': return '중고서점';
+      case 'donationOrg': return '기부단체';
+      case 'library': return '도서관';
+      default: return '파트너';
+    }
+  }
+
+  Color _partnerTypeColor(String? type) {
+    switch (type) {
+      case 'bookstore': return AppColors.primary;
+      case 'donationOrg': return AppColors.success;
+      case 'library': return AppColors.info;
+      default: return AppColors.warning;
+    }
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final pendingAsync = ref.watch(pendingDealerRequestsProvider);
-    final activeDealersAsync = ref.watch(allUsersProvider('dealer'));
+    final pendingAsync = ref.watch(pendingPartnerRequestsProvider);
+    final activePartnersAsync = ref.watch(allUsersProvider('partner'));
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('업자 관리'),
+        title: const Text('파트너 관리'),
       ),
       body: RefreshIndicator(
         onRefresh: () async {
-          ref.invalidate(pendingDealerRequestsProvider);
-          ref.invalidate(allUsersProvider('dealer'));
+          ref.invalidate(pendingPartnerRequestsProvider);
+          ref.invalidate(allUsersProvider('partner'));
         },
         child: SingleChildScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
@@ -40,7 +58,7 @@ class AdminDealerScreen extends ConsumerWidget {
                 error: (e, _) => _ErrorBox(
                   message: '대기 목록을 불러올 수 없습니다',
                   onRetry: () =>
-                      ref.invalidate(pendingDealerRequestsProvider),
+                      ref.invalidate(pendingPartnerRequestsProvider),
                 ),
                 data: (pending) {
                   if (pending.isEmpty) {
@@ -51,11 +69,14 @@ class AdminDealerScreen extends ConsumerWidget {
                   }
                   return Column(
                     children: pending.map((user) {
-                      return _PendingDealerCard(
+                      return _PendingPartnerCard(
                         nickname: user.nickname,
                         email: user.email,
                         profileImageUrl: user.profileImageUrl,
                         dealerName: user.dealerName,
+                        partnerType: user.partnerType,
+                        partnerTypeLabel: _partnerTypeLabel(user.partnerType),
+                        partnerTypeColor: _partnerTypeColor(user.partnerType),
                         onApprove: () =>
                             _handleApprove(context, ref, user.uid),
                         onReject: () =>
@@ -68,40 +89,41 @@ class AdminDealerScreen extends ConsumerWidget {
 
               const SizedBox(height: AppDimensions.paddingLG),
 
-              // === Section 2: Active Dealers ===
+              // === Section 2: Active Partners ===
               _SectionHeader(
                 icon: Icons.store,
-                title: '활성 업자',
+                title: '활성 파트너',
                 color: AppColors.success,
               ),
               const SizedBox(height: AppDimensions.paddingSM),
-              activeDealersAsync.when(
+              activePartnersAsync.when(
                 loading: () => const _LoadingBox(),
                 error: (e, _) => _ErrorBox(
-                  message: '업자 목록을 불러올 수 없습니다',
+                  message: '파트너 목록을 불러올 수 없습니다',
                   onRetry: () =>
-                      ref.invalidate(allUsersProvider('dealer')),
+                      ref.invalidate(allUsersProvider('partner')),
                 ),
-                data: (dealers) {
-                  // Filter only approved dealers
-                  final approved = dealers
+                data: (partners) {
+                  final approved = partners
                       .where((d) => d.dealerStatus == 'approved')
                       .toList();
 
                   if (approved.isEmpty) {
                     return const _EmptyBox(
                       icon: Icons.store_outlined,
-                      message: '활성 업자가 없습니다',
+                      message: '활성 파트너가 없습니다',
                     );
                   }
                   return Column(
-                    children: approved.map((dealer) {
-                      return _ActiveDealerCard(
-                        nickname: dealer.nickname,
-                        email: dealer.email,
-                        profileImageUrl: dealer.profileImageUrl,
-                        dealerName: dealer.dealerName,
-                        totalSales: dealer.totalSales,
+                    children: approved.map((partner) {
+                      return _ActivePartnerCard(
+                        nickname: partner.nickname,
+                        email: partner.email,
+                        profileImageUrl: partner.profileImageUrl,
+                        dealerName: partner.dealerName,
+                        totalSales: partner.totalSales,
+                        partnerTypeLabel: _partnerTypeLabel(partner.partnerType),
+                        partnerTypeColor: _partnerTypeColor(partner.partnerType),
                       );
                     }).toList(),
                   );
@@ -119,8 +141,8 @@ class AdminDealerScreen extends ConsumerWidget {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('업자 승인'),
-        content: const Text('이 유저를 업자로 승인하시겠습니까?'),
+        title: const Text('파트너 승인'),
+        content: const Text('이 유저를 파트너로 승인하시겠습니까?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
@@ -140,12 +162,12 @@ class AdminDealerScreen extends ConsumerWidget {
 
     if (confirmed == true) {
       try {
-        await ref.read(adminRepositoryProvider).approveDealerRequest(userId);
-        ref.invalidate(pendingDealerRequestsProvider);
-        ref.invalidate(allUsersProvider('dealer'));
+        await ref.read(adminRepositoryProvider).approvePartnerRequest(userId);
+        ref.invalidate(pendingPartnerRequestsProvider);
+        ref.invalidate(allUsersProvider('partner'));
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('업자가 승인되었습니다')),
+            const SnackBar(content: Text('파트너가 승인되었습니다')),
           );
         }
       } catch (e) {
@@ -166,8 +188,8 @@ class AdminDealerScreen extends ConsumerWidget {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('업자 거절'),
-        content: const Text('이 유저의 업자 요청을 거절하시겠습니까?'),
+        title: const Text('파트너 거절'),
+        content: const Text('이 유저의 파트너 요청을 거절하시겠습니까?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
@@ -187,8 +209,8 @@ class AdminDealerScreen extends ConsumerWidget {
 
     if (confirmed == true) {
       try {
-        await ref.read(adminRepositoryProvider).rejectDealerRequest(userId);
-        ref.invalidate(pendingDealerRequestsProvider);
+        await ref.read(adminRepositoryProvider).rejectPartnerRequest(userId);
+        ref.invalidate(pendingPartnerRequestsProvider);
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('요청이 거절되었습니다')),
@@ -231,19 +253,25 @@ class _SectionHeader extends StatelessWidget {
   }
 }
 
-class _PendingDealerCard extends StatelessWidget {
+class _PendingPartnerCard extends StatelessWidget {
   final String nickname;
   final String email;
   final String? profileImageUrl;
   final String? dealerName;
+  final String? partnerType;
+  final String partnerTypeLabel;
+  final Color partnerTypeColor;
   final VoidCallback onApprove;
   final VoidCallback onReject;
 
-  const _PendingDealerCard({
+  const _PendingPartnerCard({
     required this.nickname,
     required this.email,
     required this.profileImageUrl,
     required this.dealerName,
+    required this.partnerType,
+    required this.partnerTypeLabel,
+    required this.partnerTypeColor,
     required this.onApprove,
     required this.onReject,
   });
@@ -278,11 +306,28 @@ class _PendingDealerCard extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(nickname,
-                          style: AppTypography.titleSmall),
+                      Row(
+                        children: [
+                          Text(nickname, style: AppTypography.titleSmall),
+                          const SizedBox(width: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: partnerTypeColor.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Text(
+                              partnerTypeLabel,
+                              style: AppTypography.caption.copyWith(
+                                color: partnerTypeColor,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
                       const SizedBox(height: 2),
-                      Text(email,
-                          style: AppTypography.caption),
+                      Text(email, style: AppTypography.caption),
                       if (dealerName != null) ...[
                         const SizedBox(height: 2),
                         Text(
@@ -330,19 +375,23 @@ class _PendingDealerCard extends StatelessWidget {
   }
 }
 
-class _ActiveDealerCard extends StatelessWidget {
+class _ActivePartnerCard extends StatelessWidget {
   final String nickname;
   final String email;
   final String? profileImageUrl;
   final String? dealerName;
   final int totalSales;
+  final String partnerTypeLabel;
+  final Color partnerTypeColor;
 
-  const _ActiveDealerCard({
+  const _ActivePartnerCard({
     required this.nickname,
     required this.email,
     required this.profileImageUrl,
     required this.dealerName,
     required this.totalSales,
+    required this.partnerTypeLabel,
+    required this.partnerTypeColor,
   });
 
   @override
@@ -362,9 +411,25 @@ class _ActiveDealerCard extends StatelessWidget {
               ? const Icon(Icons.store, size: 20)
               : null,
         ),
-        title: Text(
-          dealerName ?? nickname,
-          style: AppTypography.titleSmall,
+        title: Row(
+          children: [
+            Flexible(child: Text(dealerName ?? nickname, style: AppTypography.titleSmall)),
+            const SizedBox(width: 6),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: partnerTypeColor.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: Text(
+                partnerTypeLabel,
+                style: AppTypography.caption.copyWith(
+                  color: partnerTypeColor,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
         ),
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
