@@ -230,6 +230,14 @@
         { "fieldPath": "isActive", "order": "ASCENDING" },
         { "fieldPath": "wishBooks", "arrayConfig": "CONTAINS" }
       ]
+    },
+    {
+      "collectionGroup": "wishlists",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "bookInfoId", "order": "ASCENDING" },
+        { "fieldPath": "alertEnabled", "order": "ASCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []

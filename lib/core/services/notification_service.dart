@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class NotificationService {
   final FirebaseMessaging _messaging = FirebaseMessaging.instance;
@@ -59,27 +60,51 @@ class NotificationService {
     );
   }
 
-  void _handleForegroundMessage(RemoteMessage message) {
+  void _handleForegroundMessage(RemoteMessage message) async {
     final notification = message.notification;
     if (notification == null) return;
 
     if (!kIsWeb) {
+      // Read user's preferred sound from SharedPreferences
+      final prefs = await SharedPreferences.getInstance();
+      final soundFile = prefs.getString('notificationSound') ?? 'notification_default.mp3';
+
+      final AndroidNotificationDetails androidDetails;
+      if (soundFile.isEmpty) {
+        // Silent
+        androidDetails = const AndroidNotificationDetails(
+          'bookbridge_silent',
+          '책가지 알림 (무음)',
+          channelDescription: '알림음 없이 표시됩니다',
+          playSound: false,
+          importance: Importance.high,
+          priority: Priority.high,
+        );
+      } else {
+        final channelId = 'bookbridge_${soundFile.replaceAll('.mp3', '').replaceAll('.wav', '')}';
+        androidDetails = AndroidNotificationDetails(
+          channelId,
+          '책가지 알림',
+          channelDescription: '교환 요청, 매칭, 채팅 등 알림',
+          sound: RawResourceAndroidNotificationSound(
+            soundFile.replaceAll('.mp3', '').replaceAll('.wav', ''),
+          ),
+          importance: Importance.high,
+          priority: Priority.high,
+        );
+      }
+
       _localNotifications.show(
         notification.hashCode,
         notification.title ?? '책가지',
         notification.body ?? '',
-        const NotificationDetails(
-          android: AndroidNotificationDetails(
-            'bookbridge_default',
-            '책가지 알림',
-            channelDescription: '교환 요청, 매칭, 채팅 등 알림',
-            importance: Importance.high,
-            priority: Priority.high,
-          ),
+        NotificationDetails(
+          android: androidDetails,
           iOS: DarwinNotificationDetails(
             presentAlert: true,
             presentBadge: true,
-            presentSound: true,
+            presentSound: soundFile.isNotEmpty,
+            sound: soundFile.isNotEmpty ? soundFile : null,
           ),
         ),
         payload: _buildPayload(message.data),

@@ -48,6 +48,9 @@ dependencies:
   # Notification
   flutter_local_notifications: ^17.2.1
 
+  # Audio
+  audioplayers: ^6.0.0
+
   # UI
   shimmer: ^3.0.0
   lottie: ^3.1.2

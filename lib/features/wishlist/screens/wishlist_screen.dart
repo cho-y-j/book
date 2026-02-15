@@ -8,9 +8,20 @@ import '../../../app/theme/app_typography.dart';
 import '../../../app/theme/app_dimensions.dart';
 import '../../../providers/wishlist_providers.dart';
 import '../../../core/utils/formatters.dart';
+import '../../../data/models/wishlist_model.dart';
+import '../widgets/book_alert_dialog.dart';
 
 class WishlistScreen extends ConsumerWidget {
   const WishlistScreen({super.key});
+
+  void _showAlertDialog(BuildContext context, WidgetRef ref, WishlistModel item) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => BookAlertDialog(wishlist: item),
+    );
+  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -77,8 +88,43 @@ class WishlistScreen extends ConsumerWidget {
                           if (item.author.isNotEmpty)
                             Text(item.author, style: AppTypography.bodySmall, maxLines: 1, overflow: TextOverflow.ellipsis),
                           const SizedBox(height: 4),
-                          Text(Formatters.timeAgo(item.createdAt), style: AppTypography.caption.copyWith(color: AppColors.textSecondary)),
+                          Row(
+                            children: [
+                              Text(Formatters.timeAgo(item.createdAt), style: AppTypography.caption.copyWith(color: AppColors.textSecondary)),
+                              if (item.alertEnabled) ...[
+                                const SizedBox(width: 8),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.info.withOpacity(0.1),
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                  child: Text(
+                                    '알림 ON',
+                                    style: AppTypography.caption.copyWith(
+                                      color: AppColors.info,
+                                      fontSize: 10,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
                         ])),
+                        // 알림 벨 아이콘
+                        IconButton(
+                          icon: Icon(
+                            item.alertEnabled
+                                ? Icons.notifications_active
+                                : Icons.notifications_none,
+                            color: item.alertEnabled
+                                ? AppColors.info
+                                : AppColors.textSecondary,
+                            size: 22,
+                          ),
+                          tooltip: '알림 설정',
+                          onPressed: () => _showAlertDialog(context, ref, item),
+                        ),
                         Icon(Icons.favorite, color: AppColors.error, size: 20),
                       ]),
                     ),

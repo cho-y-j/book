@@ -19,6 +19,9 @@ import 'package:book_bridge/core/utils/quick_reply_helper.dart';
 import 'package:book_bridge/core/utils/auto_greeting_helper.dart';
 import 'package:book_bridge/core/utils/location_helper.dart';
 import 'package:book_bridge/data/repositories/user_repository.dart';
+import 'package:book_bridge/data/models/wishlist_model.dart';
+import 'package:book_bridge/data/repositories/wishlist_repository.dart';
+import 'package:book_bridge/core/utils/sound_helper.dart';
 
 const _defaultGeoPoint = GeoPoint(37.5665, 126.9780);
 
@@ -2757,6 +2760,194 @@ void main() {
       expect(saved!.ownerUid, 'partner_ngo_uid');
       expect(saved.wishBooks, ['소설', '에세이']);
       expect(saved.isActive, false);
+    });
+  });
+
+  // ======================================================================
+  // 알림 시스템 테스트
+  // ======================================================================
+
+  group('SoundHelper', () {
+    test('소리 이름 → 파일명 매핑', () {
+      expect(SoundHelper.fileForSoundName('책 넘기는 소리'), 'notification_page_turn.mp3');
+      expect(SoundHelper.fileForSoundName('"책가지" 효과음'), 'notification_bookbridge.mp3');
+      expect(SoundHelper.fileForSoundName('도서관 벨 소리'), 'notification_library_bell.mp3');
+      expect(SoundHelper.fileForSoundName('연필 쓰는 소리'), 'notification_pencil.mp3');
+      expect(SoundHelper.fileForSoundName('기본 알림음'), 'notification_default.mp3');
+      expect(SoundHelper.fileForSoundName('무음'), '');
+    });
+
+    test('파일명 → 소리 이름 역매핑', () {
+      expect(SoundHelper.soundNameForFile('notification_page_turn.mp3'), '책 넘기는 소리');
+      expect(SoundHelper.soundNameForFile('notification_bookbridge.mp3'), '"책가지" 효과음');
+      expect(SoundHelper.soundNameForFile(''), '무음');
+    });
+
+    test('알 수 없는 이름은 기본 알림음 반환', () {
+      expect(SoundHelper.fileForSoundName('존재하지 않는 소리'), 'notification_default.mp3');
+    });
+
+    test('알 수 없는 파일명은 기본 알림음 반환', () {
+      expect(SoundHelper.soundNameForFile('unknown.mp3'), '기본 알림음');
+    });
+  });
+
+  group('WishlistModel 알림 필드', () {
+    test('fromFirestore — 알림 필드가 있는 경우', () {
+      final ts = Timestamp.fromDate(DateTime(2026, 1, 1));
+      final fakeDoc = fakeFirestore.collection('wishlists').doc('w1');
+      fakeDoc.set({
+        'userUid': 'user1',
+        'bookInfoId': 'book_info_1',
+        'title': '테스트 책',
+        'author': '저자',
+        'createdAt': ts,
+        'alertEnabled': true,
+        'preferredConditions': ['best', 'good'],
+        'preferredListingTypes': ['exchange'],
+        'alertNote': '상태 좋은 것만',
+      });
+
+      return fakeDoc.get().then((doc) {
+        final model = WishlistModel.fromFirestore(doc);
+        expect(model.alertEnabled, true);
+        expect(model.preferredConditions, ['best', 'good']);
+        expect(model.preferredListingTypes, ['exchange']);
+        expect(model.alertNote, '상태 좋은 것만');
+      });
+    });
+
+    test('fromFirestore — 알림 필드가 없는 경우 (하위호환)', () {
+      final ts = Timestamp.fromDate(DateTime(2026, 1, 1));
+      final fakeDoc = fakeFirestore.collection('wishlists').doc('w2');
+      fakeDoc.set({
+        'userUid': 'user1',
+        'bookInfoId': 'book_info_2',
+        'title': '오래된 위시리스트',
+        'createdAt': ts,
+      });
+
+      return fakeDoc.get().then((doc) {
+        final model = WishlistModel.fromFirestore(doc);
+        expect(model.alertEnabled, false);
+        expect(model.preferredConditions, isEmpty);
+        expect(model.preferredListingTypes, isEmpty);
+        expect(model.alertNote, isNull);
+      });
+    });
+
+    test('toFirestore 알림 필드 포함', () {
+      final model = WishlistModel(
+        id: 'w1',
+        userUid: 'user1',
+        bookInfoId: 'bi1',
+        title: '책',
+        createdAt: DateTime(2026, 1, 1),
+        alertEnabled: true,
+        preferredConditions: ['best'],
+        preferredListingTypes: ['sale'],
+        alertNote: '메모',
+      );
+      final map = model.toFirestore();
+      expect(map['alertEnabled'], true);
+      expect(map['preferredConditions'], ['best']);
+      expect(map['preferredListingTypes'], ['sale']);
+      expect(map['alertNote'], '메모');
+    });
+
+    test('copyWith 알림 필드 업데이트', () {
+      final model = WishlistModel(
+        id: 'w1',
+        userUid: 'user1',
+        bookInfoId: 'bi1',
+        title: '책',
+        createdAt: DateTime(2026, 1, 1),
+      );
+      expect(model.alertEnabled, false);
+
+      final updated = model.copyWith(
+        alertEnabled: true,
+        preferredConditions: ['best', 'good'],
+      );
+      expect(updated.alertEnabled, true);
+      expect(updated.preferredConditions, ['best', 'good']);
+      expect(updated.title, '책'); // 변경 안 된 필드
+    });
+  });
+
+  group('WishlistRepository 알림 메서드', () {
+    late WishlistRepository wishlistRepo;
+
+    setUp(() {
+      fakeFirestore = FakeFirebaseFirestore();
+      wishlistRepo = WishlistRepository(firestore: fakeFirestore);
+    });
+
+    test('updateAlertSettings', () async {
+      // 먼저 위시리스트 추가
+      final model = WishlistModel(
+        id: '',
+        userUid: 'user1',
+        bookInfoId: 'bi1',
+        title: '책',
+        createdAt: DateTime(2026, 1, 1),
+      );
+      final id = await wishlistRepo.addWishlist(model);
+
+      // 알림 설정 업데이트
+      await wishlistRepo.updateAlertSettings(
+        id,
+        alertEnabled: true,
+        preferredConditions: ['best', 'good'],
+        preferredListingTypes: ['exchange'],
+      );
+
+      final doc = await fakeFirestore.collection('wishlists').doc(id).get();
+      expect(doc.data()!['alertEnabled'], true);
+      expect(doc.data()!['preferredConditions'], ['best', 'good']);
+      expect(doc.data()!['preferredListingTypes'], ['exchange']);
+    });
+
+    test('getAlertWishlistsByBookInfoId', () async {
+      // 알림 ON 위시리스트
+      await fakeFirestore.collection('wishlists').add({
+        'userUid': 'user1',
+        'bookInfoId': 'target_book',
+        'title': '원하는 책',
+        'createdAt': Timestamp.now(),
+        'alertEnabled': true,
+        'preferredConditions': ['best'],
+        'preferredListingTypes': ['exchange'],
+      });
+
+      // 알림 OFF 위시리스트
+      await fakeFirestore.collection('wishlists').add({
+        'userUid': 'user2',
+        'bookInfoId': 'target_book',
+        'title': '원하는 책',
+        'createdAt': Timestamp.now(),
+        'alertEnabled': false,
+      });
+
+      final results = await wishlistRepo.getAlertWishlistsByBookInfoId('target_book');
+      expect(results.length, 1);
+      expect(results.first.userUid, 'user1');
+      expect(results.first.alertEnabled, true);
+    });
+
+    test('markAsNotified', () async {
+      final model = WishlistModel(
+        id: '',
+        userUid: 'user1',
+        bookInfoId: 'bi1',
+        title: '책',
+        createdAt: DateTime(2026, 1, 1),
+      );
+      final id = await wishlistRepo.addWishlist(model);
+
+      await wishlistRepo.markAsNotified(id);
+      final doc = await fakeFirestore.collection('wishlists').doc(id).get();
+      expect(doc.data()!['isNotified'], true);
     });
   });
 }

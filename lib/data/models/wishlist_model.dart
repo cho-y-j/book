@@ -9,6 +9,11 @@ class WishlistModel {
   final String? coverImageUrl;
   final DateTime createdAt;
   final bool isNotified;
+  // Alert preferences
+  final bool alertEnabled;
+  final List<String> preferredConditions;
+  final List<String> preferredListingTypes;
+  final String? alertNote;
 
   const WishlistModel({
     required this.id,
@@ -19,6 +24,10 @@ class WishlistModel {
     this.coverImageUrl,
     required this.createdAt,
     this.isNotified = false,
+    this.alertEnabled = false,
+    this.preferredConditions = const [],
+    this.preferredListingTypes = const [],
+    this.alertNote,
   });
 
   factory WishlistModel.fromFirestore(DocumentSnapshot doc) {
@@ -32,6 +41,10 @@ class WishlistModel {
       coverImageUrl: data['coverImageUrl'],
       createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
       isNotified: data['isNotified'] ?? false,
+      alertEnabled: data['alertEnabled'] ?? false,
+      preferredConditions: List<String>.from(data['preferredConditions'] ?? []),
+      preferredListingTypes: List<String>.from(data['preferredListingTypes'] ?? []),
+      alertNote: data['alertNote'],
     );
   }
 
@@ -44,6 +57,33 @@ class WishlistModel {
       'coverImageUrl': coverImageUrl,
       'createdAt': Timestamp.fromDate(createdAt),
       'isNotified': isNotified,
+      'alertEnabled': alertEnabled,
+      'preferredConditions': preferredConditions,
+      'preferredListingTypes': preferredListingTypes,
+      if (alertNote != null) 'alertNote': alertNote,
     };
+  }
+
+  WishlistModel copyWith({
+    bool? isNotified,
+    bool? alertEnabled,
+    List<String>? preferredConditions,
+    List<String>? preferredListingTypes,
+    String? alertNote,
+  }) {
+    return WishlistModel(
+      id: id,
+      userUid: userUid,
+      bookInfoId: bookInfoId,
+      title: title,
+      author: author,
+      coverImageUrl: coverImageUrl,
+      createdAt: createdAt,
+      isNotified: isNotified ?? this.isNotified,
+      alertEnabled: alertEnabled ?? this.alertEnabled,
+      preferredConditions: preferredConditions ?? this.preferredConditions,
+      preferredListingTypes: preferredListingTypes ?? this.preferredListingTypes,
+      alertNote: alertNote ?? this.alertNote,
+    );
   }
 }

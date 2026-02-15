@@ -55,4 +55,41 @@ class WishlistRepository {
         .get();
     return snapshot.docs.map((d) => WishlistModel.fromFirestore(d)).toList();
   }
+
+  /// 알림이 활성화된 위시리스트 조회 (bookInfoId 기반)
+  Future<List<WishlistModel>> getAlertWishlistsByBookInfoId(String bookInfoId) async {
+    final snapshot = await _wishlistsRef
+        .where('bookInfoId', isEqualTo: bookInfoId)
+        .where('alertEnabled', isEqualTo: true)
+        .get();
+    return snapshot.docs.map((d) => WishlistModel.fromFirestore(d)).toList();
+  }
+
+  /// 알림 설정 업데이트
+  Future<void> updateAlertSettings(
+    String wishlistId, {
+    required bool alertEnabled,
+    List<String>? preferredConditions,
+    List<String>? preferredListingTypes,
+    String? alertNote,
+  }) async {
+    final data = <String, dynamic>{
+      'alertEnabled': alertEnabled,
+    };
+    if (preferredConditions != null) {
+      data['preferredConditions'] = preferredConditions;
+    }
+    if (preferredListingTypes != null) {
+      data['preferredListingTypes'] = preferredListingTypes;
+    }
+    if (alertNote != null) {
+      data['alertNote'] = alertNote;
+    }
+    await _wishlistsRef.doc(wishlistId).update(data);
+  }
+
+  /// isNotified 플래그 업데이트
+  Future<void> markAsNotified(String wishlistId) async {
+    await _wishlistsRef.doc(wishlistId).update({'isNotified': true});
+  }
 }

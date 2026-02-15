@@ -8,6 +8,10 @@ import '../../../app/theme/app_colors.dart';
 import '../../../app/theme/app_typography.dart';
 import '../../../app/theme/app_dimensions.dart';
 import '../../../providers/book_providers.dart';
+import '../../../providers/auth_providers.dart';
+import '../../../providers/wishlist_providers.dart';
+import '../../../data/models/wishlist_model.dart';
+import '../../wishlist/widgets/book_alert_dialog.dart';
 
 class SearchScreen extends ConsumerStatefulWidget {
   const SearchScreen({super.key});
@@ -31,6 +35,60 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
 
   void _doSearch(String query) {
     setState(() => _query = query.trim());
+  }
+
+  void _showAlertSetupForQuery(BuildContext context, WidgetRef ref) async {
+    final user = ref.read(currentUserProvider);
+    if (user == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('로그인이 필요합니다')),
+      );
+      return;
+    }
+
+    final result = await showModalBottomSheet<Map<String, dynamic>>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => BookAlertQuickSetupDialog(
+        title: _query,
+        author: '',
+        bookInfoId: _query.toLowerCase().replaceAll(' ', '_'),
+        coverImageUrl: null,
+      ),
+    );
+
+    if (result == null || !context.mounted) return;
+
+    final repo = ref.read(wishlistRepositoryProvider);
+    final wishlist = WishlistModel(
+      id: '',
+      userUid: user.uid,
+      bookInfoId: _query.toLowerCase().replaceAll(' ', '_'),
+      title: _query,
+      createdAt: DateTime.now(),
+      alertEnabled: result['alertEnabled'] as bool? ?? false,
+      preferredConditions: List<String>.from(result['preferredConditions'] ?? []),
+      preferredListingTypes: List<String>.from(result['preferredListingTypes'] ?? []),
+    );
+
+    await repo.addWishlist(wishlist);
+
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            result['alertEnabled'] == true
+                ? '위시리스트에 추가되었습니다. 책이 올라오면 알려드릴게요!'
+                : '위시리스트에 추가되었습니다.',
+          ),
+          action: SnackBarAction(
+            label: '위시리스트 보기',
+            onPressed: () => context.push(AppRoutes.wishlist),
+          ),
+        ),
+      );
+    }
   }
 
   void _onSearchChanged(String value) {
@@ -169,6 +227,26 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                               Text(
                                 '\'$_query\'에 대한 검색 결과가 없습니다',
                                 style: AppTypography.bodyMedium.copyWith(
+                                  color: AppColors.textSecondary,
+                                ),
+                              ),
+                              const SizedBox(height: 24),
+                              FilledButton.icon(
+                                onPressed: () => _showAlertSetupForQuery(context, ref),
+                                icon: const Icon(Icons.notifications_active, size: 18),
+                                label: const Text('이 책이 등록되면 알려주세요'),
+                                style: FilledButton.styleFrom(
+                                  backgroundColor: AppColors.primary,
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 20,
+                                    vertical: 12,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                '위시리스트에 추가하고 알림을 받을 수 있어요',
+                                style: AppTypography.caption.copyWith(
                                   color: AppColors.textSecondary,
                                 ),
                               ),

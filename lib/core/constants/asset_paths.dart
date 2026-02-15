@@ -27,6 +27,8 @@ class AssetPaths {
   // Sounds
   static const notificationPageTurn = 'assets/sounds/notification_page_turn.mp3';
   static const notificationBookbridge = 'assets/sounds/notification_bookbridge.mp3';
+  static const notificationLibraryBell = 'assets/sounds/notification_library_bell.mp3';
+  static const notificationPencil = 'assets/sounds/notification_pencil.mp3';
   static const notificationDefault = 'assets/sounds/notification_default.mp3';
 
   // Misc
