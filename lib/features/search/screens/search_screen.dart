@@ -64,8 +64,9 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     final wishlist = WishlistModel(
       id: '',
       userUid: user.uid,
-      bookInfoId: _query.toLowerCase().replaceAll(' ', '_'),
+      bookInfoId: '',
       title: _query,
+      searchKeyword: _query,
       createdAt: DateTime.now(),
       alertEnabled: result['alertEnabled'] as bool? ?? false,
       preferredConditions: List<String>.from(result['preferredConditions'] ?? []),

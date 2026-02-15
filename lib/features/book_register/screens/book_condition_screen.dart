@@ -101,16 +101,46 @@ class _BookConditionScreenState extends ConsumerState<BookConditionScreen> {
     required String bookTitle,
     required String bookId,
     required String ownerUid,
+    required String condition,
+    required String listingType,
   }) async {
     try {
+      // alertEnabled=true인 위시리스트 모두 가져오기
       final wishlists = await FirebaseFirestore.instance
           .collection('wishlists')
-          .where('bookInfoId', isEqualTo: bookInfoId)
+          .where('alertEnabled', isEqualTo: true)
           .get();
       final batch = FirebaseFirestore.instance.batch();
       for (final doc in wishlists.docs) {
-        final wishUserUid = doc.data()['userUid'] as String?;
+        final data = doc.data();
+        final wishUserUid = data['userUid'] as String?;
         if (wishUserUid == null || wishUserUid == ownerUid) continue;
+
+        // 키워드/ISBN 매칭 확인
+        final wishBookInfoId = data['bookInfoId'] as String? ?? '';
+        final wishTitle = data['title'] as String? ?? '';
+        final searchKeyword = data['searchKeyword'] as String? ?? '';
+        final keyword = searchKeyword.isNotEmpty ? searchKeyword : wishTitle;
+
+        bool matched = false;
+        // 1. ISBN 정확히 일치
+        if (wishBookInfoId.isNotEmpty && wishBookInfoId == bookInfoId) {
+          matched = true;
+        }
+        // 2. 키워드가 책 제목에 포함
+        if (!matched && keyword.isNotEmpty && bookTitle.toLowerCase().contains(keyword.toLowerCase())) {
+          matched = true;
+        }
+        if (!matched) continue;
+
+        // 상태 조건 필터링
+        final preferredConditions = List<String>.from(data['preferredConditions'] ?? []);
+        if (preferredConditions.isNotEmpty && !preferredConditions.contains(condition)) continue;
+
+        // 거래 유형 필터링
+        final preferredListingTypes = List<String>.from(data['preferredListingTypes'] ?? []);
+        if (preferredListingTypes.isNotEmpty && !preferredListingTypes.contains(listingType)) continue;
+
         final notifRef = FirebaseFirestore.instance.collection('notifications').doc();
         batch.set(notifRef, {
           'targetUid': wishUserUid,
@@ -206,12 +236,14 @@ class _BookConditionScreenState extends ConsumerState<BookConditionScreen> {
         await ref.read(donationRepositoryProvider).createDonation(donation);
       }
 
-      // 5. 위시리스트 매칭 알림 생성
+      // 5. 위시리스트 매칭 알림 생성 (ISBN + 키워드 매칭)
       await _notifyWishlistMatches(
         bookInfoId: bookDoc['bookInfoId'] as String,
         bookTitle: bookDoc['title'] as String,
         bookId: docRef.id,
         ownerUid: user.uid,
+        condition: _condition.name,
+        listingType: _listingType.name,
       );
 
       if (mounted) {

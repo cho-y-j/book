@@ -14,6 +14,7 @@ class WishlistModel {
   final List<String> preferredConditions;
   final List<String> preferredListingTypes;
   final String? alertNote;
+  final String? searchKeyword; // 검색어 기반 위시리스트용
 
   const WishlistModel({
     required this.id,
@@ -28,6 +29,7 @@ class WishlistModel {
     this.preferredConditions = const [],
     this.preferredListingTypes = const [],
     this.alertNote,
+    this.searchKeyword,
   });
 
   factory WishlistModel.fromFirestore(DocumentSnapshot doc) {
@@ -45,6 +47,7 @@ class WishlistModel {
       preferredConditions: List<String>.from(data['preferredConditions'] ?? []),
       preferredListingTypes: List<String>.from(data['preferredListingTypes'] ?? []),
       alertNote: data['alertNote'],
+      searchKeyword: data['searchKeyword'],
     );
   }
 
@@ -61,6 +64,7 @@ class WishlistModel {
       'preferredConditions': preferredConditions,
       'preferredListingTypes': preferredListingTypes,
       if (alertNote != null) 'alertNote': alertNote,
+      if (searchKeyword != null) 'searchKeyword': searchKeyword,
     };
   }
 
@@ -70,6 +74,7 @@ class WishlistModel {
     List<String>? preferredConditions,
     List<String>? preferredListingTypes,
     String? alertNote,
+    String? searchKeyword,
   }) {
     return WishlistModel(
       id: id,
@@ -84,6 +89,17 @@ class WishlistModel {
       preferredConditions: preferredConditions ?? this.preferredConditions,
       preferredListingTypes: preferredListingTypes ?? this.preferredListingTypes,
       alertNote: alertNote ?? this.alertNote,
+      searchKeyword: searchKeyword ?? this.searchKeyword,
     );
+  }
+
+  /// 이 위시리스트가 주어진 책 제목과 매칭되는지 확인
+  bool matchesBook(String bookTitle, String bookInfoId) {
+    // 1. ISBN 정확히 일치
+    if (this.bookInfoId.isNotEmpty && this.bookInfoId == bookInfoId) return true;
+    // 2. 검색어 키워드 매칭 (제목에 포함)
+    final keyword = searchKeyword ?? title;
+    if (keyword.isNotEmpty && bookTitle.toLowerCase().contains(keyword.toLowerCase())) return true;
+    return false;
   }
 }
