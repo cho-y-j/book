@@ -20,7 +20,7 @@ class AdminOrganizationScreen extends ConsumerWidget {
         actions: [
           IconButton(
             icon: const Icon(Icons.add),
-            onPressed: () => _showAddDialog(context, ref),
+            onPressed: () => _showAddEditDialog(context, ref, null),
           ),
         ],
       ),
@@ -56,30 +56,55 @@ class AdminOrganizationScreen extends ConsumerWidget {
                   margin: const EdgeInsets.only(bottom: 8),
                   child: ListTile(
                     leading: CircleAvatar(
-                      backgroundColor: Colors.blue.withOpacity(0.1),
-                      child: Icon(_categoryIcon(org.category), color: Colors.blue, size: 20),
+                      backgroundColor: org.isActive
+                          ? Colors.blue.withOpacity(0.1)
+                          : Colors.grey.withOpacity(0.1),
+                      child: Icon(
+                        _categoryIcon(org.category),
+                        color: org.isActive ? Colors.blue : Colors.grey,
+                        size: 20,
+                      ),
                     ),
-                    title: Text(org.name),
-                    subtitle: Text('${_categoryLabel(org.category)} · ${org.address}'),
-                    trailing: IconButton(
-                      icon: Icon(Icons.delete_outline, color: AppColors.error),
-                      onPressed: () async {
-                        final confirm = await showDialog<bool>(
-                          context: context,
-                          builder: (ctx) => AlertDialog(
-                            title: const Text('기관 삭제'),
-                            content: Text('"${org.name}"을(를) 삭제하시겠습니까?'),
-                            actions: [
-                              TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('취소')),
-                              TextButton(onPressed: () => Navigator.pop(ctx, true), child: Text('삭제', style: TextStyle(color: AppColors.error))),
-                            ],
+                    title: Row(children: [
+                      Flexible(child: Text(org.name)),
+                      const SizedBox(width: 6),
+                      if (!org.isActive)
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: AppColors.warning.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(4),
                           ),
-                        );
-                        if (confirm == true) {
-                          await ref.read(donationRepositoryProvider).deleteOrganization(org.id);
-                          ref.invalidate(organizationsStreamProvider);
-                        }
-                      },
+                          child: Text('비활성', style: AppTypography.caption.copyWith(
+                            color: AppColors.warning, fontWeight: FontWeight.w600,
+                          )),
+                        ),
+                    ]),
+                    subtitle: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('${_categoryLabel(org.category)} · ${org.address}'),
+                        if (org.wishBooks.isNotEmpty)
+                          Text('희망: ${org.wishBooks.join(', ')}',
+                            style: AppTypography.caption.copyWith(color: AppColors.info),
+                          ),
+                      ],
+                    ),
+                    isThreeLine: org.wishBooks.isNotEmpty,
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        IconButton(
+                          icon: const Icon(Icons.edit_outlined, color: AppColors.primary),
+                          tooltip: '수정',
+                          onPressed: () => _showAddEditDialog(context, ref, org),
+                        ),
+                        IconButton(
+                          icon: Icon(Icons.delete_outline, color: AppColors.error),
+                          tooltip: '삭제',
+                          onPressed: () => _confirmDelete(context, ref, org),
+                        ),
+                      ],
                     ),
                   ),
                 );
@@ -109,24 +134,45 @@ class AdminOrganizationScreen extends ConsumerWidget {
     }
   }
 
-  void _showAddDialog(BuildContext context, WidgetRef ref) {
-    final nameCtrl = TextEditingController();
-    final descCtrl = TextEditingController();
-    final addrCtrl = TextEditingController();
-    final phoneCtrl = TextEditingController();
-    final hoursCtrl = TextEditingController();
-    String category = 'library';
-    String? region;
-    final selectedWish = <String>{};
+  Future<void> _confirmDelete(BuildContext context, WidgetRef ref, OrganizationModel org) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('기관 삭제'),
+        content: Text('"${org.name}"을(를) 삭제하시겠습니까?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('취소')),
+          TextButton(onPressed: () => Navigator.pop(ctx, true), child: Text('삭제', style: TextStyle(color: AppColors.error))),
+        ],
+      ),
+    );
+    if (confirm == true) {
+      await ref.read(donationRepositoryProvider).deleteOrganization(org.id);
+      ref.invalidate(organizationsStreamProvider);
+    }
+  }
+
+  /// 추가 / 수정 공용 다이얼로그 (org == null이면 추가)
+  void _showAddEditDialog(BuildContext context, WidgetRef ref, OrganizationModel? org) {
+    final isEdit = org != null;
+    final nameCtrl = TextEditingController(text: org?.name ?? '');
+    final descCtrl = TextEditingController(text: org?.description ?? '');
+    final addrCtrl = TextEditingController(text: org?.address ?? '');
+    final phoneCtrl = TextEditingController(text: org?.contactPhone ?? '');
+    final hoursCtrl = TextEditingController(text: org?.operatingHours ?? '');
+    String category = org?.category ?? 'library';
+    String? region = org?.region;
+    bool isActive = org?.isActive ?? true;
+    final selectedWish = <String>{...?org?.wishBooks};
 
     showDialog(
       context: context,
       builder: (ctx) => StatefulBuilder(builder: (ctx, setDialogState) => AlertDialog(
-        title: const Text('기관 추가'),
+        title: Text(isEdit ? '기관 수정' : '기관 추가'),
         content: SingleChildScrollView(child: Column(mainAxisSize: MainAxisSize.min, children: [
           TextField(controller: nameCtrl, decoration: const InputDecoration(labelText: '기관명')),
           const SizedBox(height: 8),
-          TextField(controller: descCtrl, decoration: const InputDecoration(labelText: '설명')),
+          TextField(controller: descCtrl, decoration: const InputDecoration(labelText: '설명'), maxLines: 2),
           const SizedBox(height: 8),
           TextField(controller: addrCtrl, decoration: const InputDecoration(labelText: '주소')),
           const SizedBox(height: 8),
@@ -155,6 +201,15 @@ class AdminOrganizationScreen extends ConsumerWidget {
             onChanged: (v) => setDialogState(() => region = v),
           ),
           const SizedBox(height: 8),
+          if (isEdit)
+            SwitchListTile(
+              title: const Text('활성 상태'),
+              subtitle: Text(isActive ? '기관 목록에 표시됩니다' : '비활성 — 목록에서 숨겨집니다'),
+              value: isActive,
+              onChanged: (v) => setDialogState(() => isActive = v),
+              contentPadding: EdgeInsets.zero,
+            ),
+          const SizedBox(height: 8),
           Align(alignment: Alignment.centerLeft, child: Text('희망 도서 장르', style: AppTypography.labelLarge)),
           const SizedBox(height: 4),
           Wrap(spacing: 4, runSpacing: 4, children: BookGenre.values.where((g) => g != BookGenre.all).map((genre) {
@@ -174,25 +229,50 @@ class AdminOrganizationScreen extends ConsumerWidget {
           ElevatedButton(
             onPressed: () async {
               if (nameCtrl.text.trim().isEmpty) return;
-              final org = OrganizationModel(
-                id: '',
-                name: nameCtrl.text.trim(),
-                description: descCtrl.text.trim(),
-                address: addrCtrl.text.trim(),
-                category: category,
-                isActive: true,
-                createdAt: DateTime.now(),
-                contactPhone: phoneCtrl.text.trim().isNotEmpty ? phoneCtrl.text.trim() : null,
-                operatingHours: hoursCtrl.text.trim().isNotEmpty ? hoursCtrl.text.trim() : null,
-                region: region,
-                subRegion: LocationHelper.extractSubRegion(addrCtrl.text.trim()),
-                wishBooks: selectedWish.toList(),
-              );
-              await ref.read(donationRepositoryProvider).createOrganization(org);
+              final repo = ref.read(donationRepositoryProvider);
+
+              if (isEdit) {
+                // 수정
+                await repo.updateOrganization(org!.id, {
+                  'name': nameCtrl.text.trim(),
+                  'description': descCtrl.text.trim(),
+                  'address': addrCtrl.text.trim(),
+                  'category': category,
+                  'contactPhone': phoneCtrl.text.trim().isNotEmpty ? phoneCtrl.text.trim() : null,
+                  'operatingHours': hoursCtrl.text.trim().isNotEmpty ? hoursCtrl.text.trim() : null,
+                  'region': region,
+                  'subRegion': LocationHelper.extractSubRegion(addrCtrl.text.trim()),
+                  'wishBooks': selectedWish.toList(),
+                  'isActive': isActive,
+                });
+              } else {
+                // 추가
+                final newOrg = OrganizationModel(
+                  id: '',
+                  name: nameCtrl.text.trim(),
+                  description: descCtrl.text.trim(),
+                  address: addrCtrl.text.trim(),
+                  category: category,
+                  isActive: true,
+                  createdAt: DateTime.now(),
+                  contactPhone: phoneCtrl.text.trim().isNotEmpty ? phoneCtrl.text.trim() : null,
+                  operatingHours: hoursCtrl.text.trim().isNotEmpty ? hoursCtrl.text.trim() : null,
+                  region: region,
+                  subRegion: LocationHelper.extractSubRegion(addrCtrl.text.trim()),
+                  wishBooks: selectedWish.toList(),
+                );
+                await repo.createOrganization(newOrg);
+              }
+
               ref.invalidate(organizationsStreamProvider);
-              if (ctx.mounted) Navigator.pop(ctx);
+              if (ctx.mounted) {
+                Navigator.pop(ctx);
+                ScaffoldMessenger.of(ctx).showSnackBar(
+                  SnackBar(content: Text(isEdit ? '기관 정보를 수정했습니다' : '기관을 추가했습니다')),
+                );
+              }
             },
-            child: const Text('추가'),
+            child: Text(isEdit ? '저장' : '추가'),
           ),
         ],
       )),

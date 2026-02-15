@@ -3,7 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../app/theme/app_colors.dart';
 import '../../../app/theme/app_typography.dart';
 import '../../../app/theme/app_dimensions.dart';
+import '../../../data/models/user_model.dart';
 import '../../../providers/admin_providers.dart';
+import '../../../providers/user_providers.dart';
 
 class AdminDealerScreen extends ConsumerWidget {
   const AdminDealerScreen({super.key});
@@ -125,6 +127,7 @@ class AdminDealerScreen extends ConsumerWidget {
                         totalSales: partner.totalSales,
                         partnerTypeLabel: _partnerTypeLabel(partner.partnerType),
                         partnerTypeColor: _partnerTypeColor(partner.partnerType),
+                        onEdit: () => _showEditPartnerDialog(context, ref, partner),
                       );
                     }).toList(),
                   );
@@ -134,6 +137,76 @@ class AdminDealerScreen extends ConsumerWidget {
           ),
         ),
       ),
+    );
+  }
+
+  void _showEditPartnerDialog(BuildContext context, WidgetRef ref, UserModel partner) {
+    final nameCtrl = TextEditingController(text: partner.dealerName ?? '');
+    String partnerType = partner.partnerType ?? 'bookstore';
+    String status = partner.dealerStatus ?? 'approved';
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(builder: (ctx, setDialogState) => AlertDialog(
+        title: const Text('파트너 정보 수정'),
+        content: SingleChildScrollView(child: Column(mainAxisSize: MainAxisSize.min, children: [
+          // 기본 정보 (읽기전용)
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: CircleAvatar(
+              backgroundImage: partner.profileImageUrl != null ? NetworkImage(partner.profileImageUrl!) : null,
+              child: partner.profileImageUrl == null ? const Icon(Icons.person) : null,
+            ),
+            title: Text(partner.nickname),
+            subtitle: Text(partner.email),
+          ),
+          const Divider(),
+          const SizedBox(height: 8),
+          TextField(controller: nameCtrl, decoration: const InputDecoration(labelText: '상호명')),
+          const SizedBox(height: 12),
+          DropdownButtonFormField<String>(
+            value: partnerType,
+            decoration: const InputDecoration(labelText: '파트너 유형'),
+            items: const [
+              DropdownMenuItem(value: 'bookstore', child: Text('중고서점')),
+              DropdownMenuItem(value: 'donationOrg', child: Text('기부단체')),
+              DropdownMenuItem(value: 'library', child: Text('도서관')),
+            ],
+            onChanged: (v) => setDialogState(() => partnerType = v ?? 'bookstore'),
+          ),
+          const SizedBox(height: 12),
+          DropdownButtonFormField<String>(
+            value: status,
+            decoration: const InputDecoration(labelText: '상태'),
+            items: const [
+              DropdownMenuItem(value: 'approved', child: Text('승인 (활성)')),
+              DropdownMenuItem(value: 'suspended', child: Text('정지')),
+            ],
+            onChanged: (v) => setDialogState(() => status = v ?? 'approved'),
+          ),
+        ])),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('취소')),
+          ElevatedButton(
+            onPressed: () async {
+              final repo = ref.read(userRepositoryProvider);
+              await repo.updateUser(partner.uid, {
+                'dealerName': nameCtrl.text.trim(),
+                'partnerType': partnerType,
+                'dealerStatus': status,
+              });
+              ref.invalidate(allUsersProvider('partner'));
+              if (ctx.mounted) {
+                Navigator.pop(ctx);
+                ScaffoldMessenger.of(ctx).showSnackBar(
+                  const SnackBar(content: Text('파트너 정보를 수정했습니다')),
+                );
+              }
+            },
+            child: const Text('저장'),
+          ),
+        ],
+      )),
     );
   }
 
@@ -500,6 +573,7 @@ class _ActivePartnerCard extends StatelessWidget {
   final int totalSales;
   final String partnerTypeLabel;
   final Color partnerTypeColor;
+  final VoidCallback onEdit;
 
   const _ActivePartnerCard({
     required this.nickname,
@@ -509,6 +583,7 @@ class _ActivePartnerCard extends StatelessWidget {
     required this.totalSales,
     required this.partnerTypeLabel,
     required this.partnerTypeColor,
+    required this.onEdit,
   });
 
   @override
@@ -562,21 +637,29 @@ class _ActivePartnerCard extends StatelessWidget {
             ),
           ],
         ),
-        trailing: Container(
-          padding:
-              const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-          decoration: BoxDecoration(
-            color: AppColors.success.withOpacity(0.15),
-            borderRadius:
-                BorderRadius.circular(AppDimensions.radiusSM),
-          ),
-          child: Text(
-            '활성',
-            style: AppTypography.caption.copyWith(
-              color: AppColors.success,
-              fontWeight: FontWeight.w600,
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            IconButton(
+              icon: const Icon(Icons.edit_outlined, color: AppColors.primary),
+              tooltip: '수정',
+              onPressed: onEdit,
             ),
-          ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: AppColors.success.withOpacity(0.15),
+                borderRadius: BorderRadius.circular(AppDimensions.radiusSM),
+              ),
+              child: Text(
+                '활성',
+                style: AppTypography.caption.copyWith(
+                  color: AppColors.success,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
         ),
         isThreeLine: true,
       ),
