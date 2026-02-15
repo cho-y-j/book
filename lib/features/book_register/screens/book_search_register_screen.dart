@@ -5,9 +5,52 @@ import '../../../app/routes.dart';
 import '../../../app/theme/app_colors.dart';
 import '../../../app/theme/app_typography.dart';
 import '../../../app/theme/app_dimensions.dart';
+import '../../../data/datasources/remote/book_api_datasource.dart';
 
 class BookSearchRegisterScreen extends ConsumerWidget {
   const BookSearchRegisterScreen({super.key});
+
+  Future<void> _handleBarcodeScan(BuildContext context) async {
+    final isbn = await context.push<String>(AppRoutes.barcodeScan);
+    if (isbn == null || isbn.isEmpty) return;
+    if (!context.mounted) return;
+
+    // 로딩 다이얼로그
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(child: CircularProgressIndicator()),
+    );
+
+    try {
+      final datasource = BookApiDatasource();
+      final bookData = await datasource.searchByIsbn(isbn);
+
+      if (!context.mounted) return;
+      Navigator.pop(context); // 로딩 닫기
+
+      if (bookData != null) {
+        context.push(AppRoutes.bookCondition, extra: bookData);
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('ISBN $isbn 에 해당하는 책을 찾을 수 없습니다'),
+            action: SnackBarAction(
+              label: '직접 등록',
+              onPressed: () => context.push(AppRoutes.manualRegister),
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      if (!context.mounted) return;
+      Navigator.pop(context); // 로딩 닫기
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('책 정보 조회 실패: $e')),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return Scaffold(
@@ -17,7 +60,7 @@ class BookSearchRegisterScreen extends ConsumerWidget {
         child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
           Text('어떤 방법으로 등록할까요?', style: AppTypography.headlineSmall),
           const SizedBox(height: 32),
-          _RegisterOptionCard(icon: Icons.qr_code_scanner, title: '바코드 스캔', description: 'ISBN 바코드를 스캔하여\n빠르게 등록', onTap: () => context.push(AppRoutes.barcodeScan)),
+          _RegisterOptionCard(icon: Icons.qr_code_scanner, title: '바코드 스캔', description: 'ISBN 바코드를 스캔하여\n빠르게 등록', onTap: () => _handleBarcodeScan(context)),
           const SizedBox(height: 16),
           _RegisterOptionCard(icon: Icons.search, title: '책 제목 검색', description: '제목이나 저자로\n검색하여 등록', onTap: () => context.push(AppRoutes.bookTitleSearch)),
           const SizedBox(height: 16),
