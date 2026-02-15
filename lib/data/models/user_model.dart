@@ -25,6 +25,7 @@ class UserModel {
   final String? dealerName; // 파트너 상호명 (Firestore 키 유지)
   final String? partnerType; // 'bookstore' | 'donationOrg' | 'library'
   final int totalSales; // 판매 완료 수
+  final String? businessLicenseUrl; // 사업자등록증 이미지 URL
   // 고향 관련
   final String? hometown; // '전라남도 목포시'
   final String? hometownRegion; // '전라남도'
@@ -54,6 +55,7 @@ class UserModel {
     this.dealerName,
     this.partnerType,
     this.totalSales = 0,
+    this.businessLicenseUrl,
     this.hometown,
     this.hometownRegion,
     this.hometownSubRegion,
@@ -85,6 +87,7 @@ class UserModel {
       dealerName: data['dealerName'],
       partnerType: data['partnerType'],
       totalSales: data['totalSales'] ?? 0,
+      businessLicenseUrl: data['businessLicenseUrl'],
       hometown: data['hometown'],
       hometownRegion: data['hometownRegion'],
       hometownSubRegion: data['hometownSubRegion'],
@@ -115,6 +118,7 @@ class UserModel {
       'dealerName': dealerName,
       'partnerType': partnerType,
       'totalSales': totalSales,
+      'businessLicenseUrl': businessLicenseUrl,
       'hometown': hometown,
       'hometownRegion': hometownRegion,
       'hometownSubRegion': hometownSubRegion,
@@ -141,6 +145,7 @@ class UserModel {
     String? dealerName,
     String? partnerType,
     int? totalSales,
+    String? businessLicenseUrl,
     String? hometown,
     String? hometownRegion,
     String? hometownSubRegion,
@@ -169,6 +174,7 @@ class UserModel {
       dealerName: dealerName ?? this.dealerName,
       partnerType: partnerType ?? this.partnerType,
       totalSales: totalSales ?? this.totalSales,
+      businessLicenseUrl: businessLicenseUrl ?? this.businessLicenseUrl,
       hometown: hometown ?? this.hometown,
       hometownRegion: hometownRegion ?? this.hometownRegion,
       hometownSubRegion: hometownSubRegion ?? this.hometownSubRegion,

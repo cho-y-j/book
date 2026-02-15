@@ -77,6 +77,7 @@ class AdminDealerScreen extends ConsumerWidget {
                         partnerType: user.partnerType,
                         partnerTypeLabel: _partnerTypeLabel(user.partnerType),
                         partnerTypeColor: _partnerTypeColor(user.partnerType),
+                        businessLicenseUrl: user.businessLicenseUrl,
                         onApprove: () =>
                             _handleApprove(context, ref, user.uid),
                         onReject: () =>
@@ -261,6 +262,7 @@ class _PendingPartnerCard extends StatelessWidget {
   final String? partnerType;
   final String partnerTypeLabel;
   final Color partnerTypeColor;
+  final String? businessLicenseUrl;
   final VoidCallback onApprove;
   final VoidCallback onReject;
 
@@ -272,9 +274,49 @@ class _PendingPartnerCard extends StatelessWidget {
     required this.partnerType,
     required this.partnerTypeLabel,
     required this.partnerTypeColor,
+    required this.businessLicenseUrl,
     required this.onApprove,
     required this.onReject,
   });
+
+  void _showLicenseImage(BuildContext context) {
+    if (businessLicenseUrl == null) return;
+    showDialog(
+      context: context,
+      builder: (ctx) => Dialog(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            AppBar(
+              title: const Text('사업자등록증'),
+              leading: IconButton(
+                icon: const Icon(Icons.close),
+                onPressed: () => Navigator.pop(ctx),
+              ),
+              automaticallyImplyLeading: false,
+            ),
+            InteractiveViewer(
+              child: Image.network(
+                businessLicenseUrl!,
+                fit: BoxFit.contain,
+                loadingBuilder: (_, child, progress) {
+                  if (progress == null) return child;
+                  return const SizedBox(
+                    height: 300,
+                    child: Center(child: CircularProgressIndicator()),
+                  );
+                },
+                errorBuilder: (_, __, ___) => const SizedBox(
+                  height: 200,
+                  child: Center(child: Text('이미지를 불러올 수 없습니다')),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -343,6 +385,81 @@ class _PendingPartnerCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 12),
+
+            // 사업자등록증 확인
+            if (businessLicenseUrl != null)
+              GestureDetector(
+                onTap: () => _showLicenseImage(context),
+                child: Container(
+                  width: double.infinity,
+                  height: 120,
+                  margin: const EdgeInsets.only(bottom: 12),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(AppDimensions.radiusSM),
+                    border: Border.all(color: AppColors.info.withOpacity(0.3)),
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(AppDimensions.radiusSM - 1),
+                    child: Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        Image.network(
+                          businessLicenseUrl!,
+                          fit: BoxFit.cover,
+                          loadingBuilder: (_, child, progress) {
+                            if (progress == null) return child;
+                            return const Center(child: CircularProgressIndicator(strokeWidth: 2));
+                          },
+                          errorBuilder: (_, __, ___) => const Center(
+                            child: Icon(Icons.broken_image, size: 32, color: Colors.grey),
+                          ),
+                        ),
+                        Positioned(
+                          bottom: 4,
+                          right: 4,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: AppColors.info,
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: const Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.zoom_in, size: 14, color: Colors.white),
+                                SizedBox(width: 4),
+                                Text('사업자등록증 확인', style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600)),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              )
+            else
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(12),
+                margin: const EdgeInsets.only(bottom: 12),
+                decoration: BoxDecoration(
+                  color: AppColors.error.withOpacity(0.05),
+                  borderRadius: BorderRadius.circular(AppDimensions.radiusSM),
+                  border: Border.all(color: AppColors.error.withOpacity(0.2)),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.warning_amber, size: 18, color: AppColors.error),
+                    const SizedBox(width: 8),
+                    Text(
+                      '사업자등록증 미첨부',
+                      style: AppTypography.bodySmall.copyWith(color: AppColors.error),
+                    ),
+                  ],
+                ),
+              ),
+
             Row(
               children: [
                 Expanded(

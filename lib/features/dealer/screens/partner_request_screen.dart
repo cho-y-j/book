@@ -1,7 +1,10 @@
+import 'dart:typed_data';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:image_picker/image_picker.dart';
 import '../../../app/theme/app_colors.dart';
 import '../../../app/theme/app_typography.dart';
 import '../../../app/theme/app_dimensions.dart';
@@ -25,6 +28,7 @@ class _PartnerRequestScreenState extends ConsumerState<PartnerRequestScreen> {
   final _phoneController = TextEditingController();
   final _addressController = TextEditingController();
   final _hoursController = TextEditingController();
+  final _picker = ImagePicker();
   bool _isSubmitting = false;
   bool _isDetectingGps = false;
 
@@ -32,6 +36,10 @@ class _PartnerRequestScreenState extends ConsumerState<PartnerRequestScreen> {
   String? _region;
   String? _subRegion;
   final Set<String> _selectedWishGenres = {};
+
+  // 사업자등록증
+  Uint8List? _licenseBytes;
+  String? _licenseFileName;
 
   @override
   void dispose() {
@@ -41,6 +49,30 @@ class _PartnerRequestScreenState extends ConsumerState<PartnerRequestScreen> {
     _addressController.dispose();
     _hoursController.dispose();
     super.dispose();
+  }
+
+  Future<void> _pickLicenseImage() async {
+    try {
+      final picked = await _picker.pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 1600,
+        maxHeight: 1600,
+        imageQuality: 85,
+      );
+      if (picked != null) {
+        final bytes = await picked.readAsBytes();
+        setState(() {
+          _licenseBytes = bytes;
+          _licenseFileName = picked.name;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('이미지 선택 실패: $e')),
+        );
+      }
+    }
   }
 
   Future<void> _detectGps() async {
@@ -73,13 +105,32 @@ class _PartnerRequestScreenState extends ConsumerState<PartnerRequestScreen> {
     _subRegion = LocationHelper.extractSubRegion(value);
   }
 
+  Future<String?> _uploadLicense(String uid) async {
+    if (_licenseBytes == null) return null;
+    final ref = FirebaseStorage.instance
+        .ref()
+        .child('partners/$uid/business_license_${DateTime.now().millisecondsSinceEpoch}.jpg');
+    await ref.putData(_licenseBytes!, SettableMetadata(contentType: 'image/jpeg'));
+    return await ref.getDownloadURL();
+  }
+
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
+
+    if (_licenseBytes == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('사업자등록증을 첨부해주세요'), backgroundColor: AppColors.error),
+      );
+      return;
+    }
 
     setState(() => _isSubmitting = true);
     try {
       final user = ref.read(currentUserProfileProvider).valueOrNull;
       if (user == null) throw Exception('로그인이 필요합니다');
+
+      // 사업자등록증 업로드
+      final licenseUrl = await _uploadLicense(user.uid);
 
       // 유저 업데이트: role=partner, dealerStatus=pending
       await ref.read(userRepositoryProvider).updateUser(user.uid, {
@@ -87,6 +138,7 @@ class _PartnerRequestScreenState extends ConsumerState<PartnerRequestScreen> {
         'dealerStatus': 'pending',
         'dealerName': _nameController.text.trim(),
         'partnerType': _partnerType,
+        'businessLicenseUrl': licenseUrl,
       });
 
       // 기부단체/도서관이면 Organization 문서 생성
@@ -164,7 +216,7 @@ class _PartnerRequestScreenState extends ConsumerState<PartnerRequestScreen> {
                     const SizedBox(height: 8),
                     Text(
                       '파트너로 등록하면 중고서점, 기부단체, 도서관으로 활동할 수 있습니다.\n'
-                      '신청 후 관리자 승인이 필요합니다.',
+                      '사업자등록증 첨부 후 관리자 승인이 필요합니다.',
                       style: AppTypography.bodySmall,
                     ),
                   ],
@@ -260,6 +312,83 @@ class _PartnerRequestScreenState extends ConsumerState<PartnerRequestScreen> {
               TextFormField(
                 controller: _hoursController,
                 decoration: const InputDecoration(hintText: '예: 09:00 - 18:00', border: OutlineInputBorder()),
+              ),
+              const SizedBox(height: 16),
+
+              // === 사업자등록증 ===
+              Text('사업자등록증', style: AppTypography.labelLarge),
+              const SizedBox(height: 4),
+              Text('승인을 위해 사업자등록증 사본을 첨부해주세요', style: AppTypography.caption.copyWith(color: AppColors.textSecondary)),
+              const SizedBox(height: 8),
+              GestureDetector(
+                onTap: _pickLicenseImage,
+                child: Container(
+                  width: double.infinity,
+                  height: 180,
+                  decoration: BoxDecoration(
+                    color: AppColors.surface,
+                    borderRadius: BorderRadius.circular(AppDimensions.radiusMD),
+                    border: Border.all(
+                      color: _licenseBytes == null ? AppColors.divider : AppColors.success,
+                      width: _licenseBytes == null ? 1 : 2,
+                    ),
+                  ),
+                  child: _licenseBytes != null
+                      ? ClipRRect(
+                          borderRadius: BorderRadius.circular(AppDimensions.radiusMD - 1),
+                          child: Stack(
+                            fit: StackFit.expand,
+                            children: [
+                              Image.memory(_licenseBytes!, fit: BoxFit.cover),
+                              Positioned(
+                                top: 8,
+                                right: 8,
+                                child: CircleAvatar(
+                                  radius: 16,
+                                  backgroundColor: Colors.black54,
+                                  child: IconButton(
+                                    icon: const Icon(Icons.close, size: 16, color: Colors.white),
+                                    padding: EdgeInsets.zero,
+                                    onPressed: () => setState(() {
+                                      _licenseBytes = null;
+                                      _licenseFileName = null;
+                                    }),
+                                  ),
+                                ),
+                              ),
+                              Positioned(
+                                bottom: 8,
+                                left: 8,
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.success,
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                  child: const Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(Icons.check, size: 14, color: Colors.white),
+                                      SizedBox(width: 4),
+                                      Text('첨부 완료', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600)),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        )
+                      : Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.upload_file, size: 40, color: AppColors.textSecondary),
+                            const SizedBox(height: 8),
+                            Text('사업자등록증 이미지를 선택하세요', style: AppTypography.bodySmall.copyWith(color: AppColors.textSecondary)),
+                            const SizedBox(height: 4),
+                            Text('탭하여 갤러리에서 선택', style: AppTypography.caption.copyWith(color: AppColors.textSecondary)),
+                          ],
+                        ),
+                ),
               ),
               const SizedBox(height: 16),
 

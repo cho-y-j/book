@@ -47,6 +47,16 @@ service firebase.storage {
       allow delete: if false;
     }
 
+    // ===== Partner Business License =====
+    match /partners/{userId}/{fileName} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated() &&
+        request.auth.uid == userId &&
+        isImage() &&
+        isValidSize();
+      allow delete: if false;
+    }
+
     // ===== Report Evidence Photos =====
     match /reports/{reportId}/evidence/{fileName} {
       allow read: if isAuthenticated();
