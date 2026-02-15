@@ -140,10 +140,7 @@ class WishlistScreen extends ConsumerWidget {
                   child: InkWell(
                     borderRadius: BorderRadius.circular(AppDimensions.radiusMD),
                     onTap: () {
-                      // bookInfoId가 ISBN이면 책 검색, 아니면 bookId로 상세
-                      if (item.bookInfoId.isNotEmpty) {
-                        context.push(AppRoutes.bookDetailPath(item.bookInfoId));
-                      }
+                      context.push(AppRoutes.wishlistMatches, extra: item);
                     },
                     onLongPress: () => _showItemOptions(context, ref, item),
                     child: Padding(

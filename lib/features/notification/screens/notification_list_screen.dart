@@ -1,13 +1,62 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import '../../../app/routes.dart';
 import '../../../app/theme/app_colors.dart';
 import '../../../app/theme/app_typography.dart';
 import '../../../app/theme/app_dimensions.dart';
 import '../../../providers/notification_providers.dart';
 import '../../../providers/auth_providers.dart';
+import '../../../data/models/notification_model.dart';
 
 class NotificationListScreen extends ConsumerWidget {
   const NotificationListScreen({super.key});
+
+  IconData _iconForType(String type) {
+    switch (type) {
+      case 'wishlist_match':
+        return Icons.auto_awesome;
+      case 'exchange_request':
+      case 'match':
+        return Icons.swap_horiz;
+      case 'chat':
+        return Icons.chat_bubble;
+      case 'purchase':
+        return Icons.shopping_cart;
+      case 'sharing':
+        return Icons.volunteer_activism;
+      default:
+        return Icons.notifications;
+    }
+  }
+
+  void _onNotificationTap(BuildContext context, WidgetRef ref, NotificationModel n) {
+    if (!n.isRead) {
+      ref.read(notificationRepositoryProvider).markAsRead(n.id);
+    }
+
+    final data = n.data;
+    final type = data?['type'] as String? ?? n.type;
+    final id = data?['id'] as String?;
+
+    if (id == null || id.isEmpty) return;
+
+    switch (type) {
+      case 'wishlist_match':
+        context.push(AppRoutes.bookDetailPath(id));
+        break;
+      case 'exchange_request':
+      case 'match':
+        context.push(AppRoutes.incomingRequests);
+        break;
+      case 'chat':
+        context.push(AppRoutes.chatRoomPath(id));
+        break;
+      default:
+        break;
+    }
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final notificationsAsync = ref.watch(notificationsProvider);
@@ -34,13 +83,20 @@ class NotificationListScreen extends ConsumerWidget {
             itemCount: notifications.length,
             itemBuilder: (_, i) {
               final n = notifications[i];
+              final hasLink = n.data?['id'] != null;
               return ListTile(
-                leading: Icon(n.isRead ? Icons.notifications_none : Icons.notifications_active, color: n.isRead ? AppColors.textSecondary : AppColors.primary),
+                leading: CircleAvatar(
+                  backgroundColor: n.isRead ? AppColors.divider : AppColors.primaryLight,
+                  child: Icon(
+                    _iconForType(n.type),
+                    color: n.isRead ? AppColors.textSecondary : AppColors.primary,
+                    size: 20,
+                  ),
+                ),
                 title: Text(n.title, style: AppTypography.titleMedium.copyWith(fontWeight: n.isRead ? FontWeight.normal : FontWeight.bold)),
                 subtitle: Text(n.body, style: AppTypography.bodySmall, maxLines: 2, overflow: TextOverflow.ellipsis),
-                onTap: () {
-                  if (!n.isRead) ref.read(notificationRepositoryProvider).markAsRead(n.id);
-                },
+                trailing: hasLink ? Icon(Icons.chevron_right, color: AppColors.textSecondary) : null,
+                onTap: () => _onNotificationTap(context, ref, n),
               );
             },
           );

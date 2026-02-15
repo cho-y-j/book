@@ -42,6 +42,8 @@ import '../features/review/screens/write_review_screen.dart';
 import '../features/review/screens/received_reviews_screen.dart';
 // Wishlist
 import '../features/wishlist/screens/wishlist_screen.dart';
+import '../features/wishlist/screens/wishlist_matches_screen.dart';
+import '../data/models/wishlist_model.dart';
 // Book Club
 import '../features/book_club/screens/book_club_list_screen.dart';
 import '../features/book_club/screens/book_club_detail_screen.dart';
@@ -126,6 +128,7 @@ class AppRoutes {
 
   // Wishlist
   static const wishlist = '/wishlist';
+  static const wishlistMatches = '/wishlist-matches';
 
   // Book Club
   static const bookClubList = '/book-clubs';
@@ -262,6 +265,10 @@ final appRouter = GoRouter(
 
     // === Wishlist ===
     GoRoute(path: AppRoutes.wishlist, builder: (_, __) => const WishlistScreen()),
+    GoRoute(path: AppRoutes.wishlistMatches, builder: (_, state) {
+      final wishlist = state.extra as WishlistModel;
+      return WishlistMatchesScreen(wishlist: wishlist);
+    }),
 
     // === Book Club ===
     GoRoute(path: AppRoutes.bookClubList, builder: (_, __) => const BookClubListScreen()),
