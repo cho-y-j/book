@@ -65,7 +65,7 @@ class BookFeedCard extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                 decoration: BoxDecoration(color: Colors.purple.withOpacity(0.1), borderRadius: BorderRadius.circular(4)),
-                child: Text('업자', style: AppTypography.caption.copyWith(color: Colors.purple, fontWeight: FontWeight.w600, fontSize: 10)),
+                child: Text('파트너', style: AppTypography.caption.copyWith(color: Colors.purple, fontWeight: FontWeight.w600, fontSize: 10)),
               ),
             ],
           ]),

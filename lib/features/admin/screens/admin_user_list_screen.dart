@@ -21,7 +21,7 @@ class _AdminUserListScreenState extends ConsumerState<AdminUserListScreen> {
   static const _roleFilters = <String?, String>{
     null: '전체',
     'user': '일반',
-    'dealer': '업자',
+    'partner': '파트너',
     'admin': '관리자',
   };
 
@@ -215,7 +215,7 @@ class _RoleBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     final (label, color) = switch (role) {
       'admin' => ('관리자', AppColors.error),
-      'dealer' => ('업자', AppColors.warning),
+      'partner' => ('파트너', AppColors.warning),
       _ => ('일반', AppColors.info),
     };
 

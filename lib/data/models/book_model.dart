@@ -14,7 +14,7 @@ class BookModel {
   final String exchangeType; // 'local_only' | 'delivery_only' | 'both'
   final String listingType; // 'exchange' | 'sale' | 'both'
   final int? price; // 원 단위, 판매가 (교환만이면 null)
-  final bool isDealer; // 업자 등록 여부
+  final bool isDealer; // 파트너 등록 여부
   final String location;
   final GeoPoint geoPoint;
   final String genre;

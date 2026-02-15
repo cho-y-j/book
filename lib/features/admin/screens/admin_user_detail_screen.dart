@@ -163,12 +163,12 @@ class _AdminUserDetailScreenState
                       ),
                       if (user.dealerName != null)
                         _DetailRow(
-                          label: '업자 상호',
+                          label: '파트너 상호',
                           value: user.dealerName!,
                         ),
                       if (user.dealerStatus != null)
                         _DetailRow(
-                          label: '업자 상태',
+                          label: '파트너 상태',
                           value: _dealerStatusLabel(user.dealerStatus!),
                         ),
                     ],
@@ -256,8 +256,8 @@ class _AdminUserDetailScreenState
                                   value: 'user',
                                   child: Text('일반 유저')),
                               DropdownMenuItem(
-                                  value: 'dealer',
-                                  child: Text('업자')),
+                                  value: 'partner',
+                                  child: Text('파트너')),
                               DropdownMenuItem(
                                   value: 'admin',
                                   child: Text('관리자')),
@@ -383,13 +383,13 @@ class _AdminUserDetailScreenState
 
   String _roleLabel(String role) => switch (role) {
         'admin' => '관리자',
-        'dealer' => '업자',
+        'partner' => '파트너',
         _ => '일반',
       };
 
   Color _roleColor(String role) => switch (role) {
         'admin' => AppColors.error,
-        'dealer' => AppColors.warning,
+        'partner' => AppColors.warning,
         _ => AppColors.info,
       };
 
