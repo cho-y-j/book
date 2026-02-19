@@ -17,6 +17,15 @@ class MatchConfirmScreen extends ConsumerWidget {
         future: ref.read(exchangeRepositoryProvider).getMatch(matchId),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
+          if (snapshot.hasError) {
+            return Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+              const Icon(Icons.error_outline, size: 48, color: AppColors.textSecondary),
+              const SizedBox(height: 12),
+              Text('매칭 정보를 불러올 수 없습니다', style: AppTypography.bodyMedium),
+              const SizedBox(height: 12),
+              TextButton(onPressed: () => Navigator.pop(context), child: const Text('돌아가기')),
+            ]));
+          }
           final match = snapshot.data;
           return Column(mainAxisAlignment: MainAxisAlignment.center, children: [
             const Icon(Icons.celebration, size: 80, color: AppColors.accent),

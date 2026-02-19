@@ -266,7 +266,10 @@ final appRouter = GoRouter(
     // === Wishlist ===
     GoRoute(path: AppRoutes.wishlist, builder: (_, __) => const WishlistScreen()),
     GoRoute(path: AppRoutes.wishlistMatches, builder: (_, state) {
-      final wishlist = state.extra as WishlistModel;
+      final wishlist = state.extra as WishlistModel?;
+      if (wishlist == null) {
+        return const Scaffold(body: Center(child: Text('잘못된 접근입니다')));
+      }
       return WishlistMatchesScreen(wishlist: wishlist);
     }),
 

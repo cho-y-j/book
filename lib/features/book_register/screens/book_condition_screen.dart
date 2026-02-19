@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
+import '../../../app/routes.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -264,13 +265,37 @@ class _BookConditionScreenState extends ConsumerState<BookConditionScreen> {
     final showExchangeType = _listingType != ListingType.sharing && _listingType != ListingType.donation;
     final showPrice = _listingType == ListingType.sale || _listingType == ListingType.both;
 
+    // _bookData가 null이면 에러 안내 (잘못된 경로 진입 방지)
+    if (_bookData == null) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('책 상태 입력')),
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(32),
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
+              const Icon(Icons.error_outline, size: 64, color: AppColors.textSecondary),
+              const SizedBox(height: 16),
+              Text('책 정보를 불러올 수 없습니다', style: AppTypography.titleMedium),
+              const SizedBox(height: 8),
+              Text('검색 또는 직접 등록으로 다시 시도해주세요', style: AppTypography.bodySmall.copyWith(color: AppColors.textSecondary), textAlign: TextAlign.center),
+              const SizedBox(height: 24),
+              FilledButton(
+                onPressed: () => context.go(AppRoutes.bookRegister),
+                child: const Text('등록 화면으로 돌아가기'),
+              ),
+            ]),
+          ),
+        ),
+      );
+    }
+
     return Scaffold(
       appBar: AppBar(title: const Text('책 상태 입력')),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(AppDimensions.paddingLG),
         child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
           // 선택한 책 정보 미리보기
-          if (_bookData != null) Container(
+          Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(color: AppColors.primaryLight.withOpacity(0.1), borderRadius: BorderRadius.circular(AppDimensions.radiusMD)),
             child: Row(children: [
@@ -288,7 +313,7 @@ class _BookConditionScreenState extends ConsumerState<BookConditionScreen> {
               ])),
             ]),
           ),
-          if (_bookData != null) const SizedBox(height: 24),
+          const SizedBox(height: 24),
 
           // 책 상태
           Text('책 상태를 선택해주세요', style: AppTypography.titleLarge),

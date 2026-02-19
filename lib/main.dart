@@ -1,3 +1,6 @@
+import 'dart:async';
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -12,20 +15,37 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 }
 
 void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
+  // 앱 전체 에러 캐치 — 검은 화면/크래시 방지
+  runZonedGuarded(() async {
+    WidgetsFlutterBinding.ensureInitialized();
 
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
+    // Flutter 프레임워크 에러 → 로그만 출력 (검은 화면 X)
+    FlutterError.onError = (details) {
+      FlutterError.presentError(details);
+      if (kDebugMode) {
+        debugPrint('FlutterError: ${details.exception}');
+      }
+    };
 
-  FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
 
-  final notificationService = NotificationService();
-  await notificationService.init();
+    FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 
-  runApp(
-    const ProviderScope(
-      child: BookGajiApp(),
-    ),
-  );
+    final notificationService = NotificationService();
+    await notificationService.init();
+
+    runApp(
+      const ProviderScope(
+        child: BookGajiApp(),
+      ),
+    );
+  }, (error, stackTrace) {
+    // Zone 밖 비동기 에러 캐치
+    if (kDebugMode) {
+      debugPrint('Uncaught error: $error');
+      debugPrint('$stackTrace');
+    }
+  });
 }

@@ -32,23 +32,51 @@ class BookSearchRegisterScreen extends ConsumerWidget {
       if (bookData != null) {
         context.push(AppRoutes.bookCondition, extra: bookData);
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('ISBN $isbn 에 해당하는 책을 찾을 수 없습니다'),
-            action: SnackBarAction(
-              label: '직접 등록',
-              onPressed: () => context.push(AppRoutes.manualRegister),
-            ),
-          ),
-        );
+        _showNotFoundDialog(context, isbn);
       }
     } catch (e) {
       if (!context.mounted) return;
       Navigator.pop(context); // 로딩 닫기
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('책 정보 조회 실패: $e')),
-      );
+      _showNotFoundDialog(context, isbn, error: '$e');
     }
+  }
+
+  void _showNotFoundDialog(BuildContext context, String isbn, {String? error}) {
+    showDialog(
+      context: context,
+      builder: (dCtx) => AlertDialog(
+        icon: const Icon(Icons.search_off, size: 48, color: Colors.orange),
+        title: const Text('책을 찾을 수 없습니다'),
+        content: Column(mainAxisSize: MainAxisSize.min, children: [
+          Text(
+            error != null
+                ? '조회 중 오류가 발생했습니다.\nISBN: $isbn'
+                : 'ISBN $isbn에 해당하는 책이\n데이터베이스에 없습니다.',
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 12),
+          const Text(
+            '직접 등록하시면 다른 사용자도 이 책을 찾을 수 있어요!',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 13, color: Colors.grey),
+          ),
+        ]),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dCtx),
+            child: const Text('닫기'),
+          ),
+          FilledButton.icon(
+            onPressed: () {
+              Navigator.pop(dCtx);
+              context.push(AppRoutes.manualRegister);
+            },
+            icon: const Icon(Icons.edit_note, size: 18),
+            label: const Text('직접 등록'),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
