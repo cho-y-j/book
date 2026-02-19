@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import '../../../app/routes.dart';
 import '../../../app/theme/app_colors.dart';
 import '../../../app/theme/app_typography.dart';
 import '../../../app/theme/app_dimensions.dart';
@@ -76,6 +78,11 @@ class _ChatRoomScreenState extends ConsumerState<ChatRoomScreen> {
     final chatRoom = ref.read(chatRoomDetailProvider(widget.chatRoomId)).value;
     if (chatRoom == null) return;
 
+    final currentUid = ref.read(currentUserProvider)?.uid;
+    final isRequester = chatRoom.participants.length >= 2
+        ? currentUid == chatRoom.participants[1]
+        : true;
+
     setState(() {
       _aiLoading = true;
       _aiSuggestion = null;
@@ -87,6 +94,7 @@ class _ChatRoomScreenState extends ConsumerState<ChatRoomScreen> {
           chatRoomId: widget.chatRoomId,
           bookTitle: chatRoom.bookTitle ?? '',
           transactionType: chatRoom.transactionType ?? '',
+          isRequester: isRequester,
         )).future,
       );
       if (mounted && suggestion.isNotEmpty) {
@@ -195,11 +203,29 @@ class _ChatRoomScreenState extends ConsumerState<ChatRoomScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(
-          chatRoom?.bookTitle != null
-              ? '${_transactionIcon(chatRoom?.transactionType)} ${chatRoom!.bookTitle}'
-              : '채팅',
-          style: AppTypography.titleMedium,
+        title: GestureDetector(
+          onTap: chatRoom?.bookId != null && chatRoom!.bookId!.isNotEmpty
+              ? () => context.push(AppRoutes.bookDetailPath(chatRoom.bookId!))
+              : null,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Flexible(
+                child: Text(
+                  chatRoom?.bookTitle != null
+                      ? '${_transactionIcon(chatRoom?.transactionType)} ${chatRoom!.bookTitle}'
+                      : '채팅',
+                  style: AppTypography.titleMedium,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              if (chatRoom?.bookId != null && chatRoom!.bookId!.isNotEmpty)
+                const Padding(
+                  padding: EdgeInsets.only(left: 4),
+                  child: Icon(Icons.open_in_new, size: 14, color: AppColors.textSecondary),
+                ),
+            ],
+          ),
         ),
         actions: [
           IconButton(icon: const Icon(Icons.more_vert), onPressed: () {}),

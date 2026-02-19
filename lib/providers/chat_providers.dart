@@ -30,16 +30,17 @@ final deepSeekDatasourceProvider = Provider<DeepSeekDatasource>((ref) {
 });
 
 /// AI 답변 추천 (on-demand)
-final aiReplySuggestionProvider = FutureProvider.family<String, ({String chatRoomId, String bookTitle, String transactionType})>((ref, params) async {
+final aiReplySuggestionProvider = FutureProvider.family<String, ({String chatRoomId, String bookTitle, String transactionType, bool isRequester})>((ref, params) async {
   final recentMessages = await ref.read(chatRepositoryProvider)
-      .getRecentMessages(params.chatRoomId, limit: 3);
+      .getRecentMessages(params.chatRoomId, limit: 5);
+  // auto_greeting, system, text 모두 포함 → AI가 전체 맥락 파악
   final messageTexts = recentMessages
-      .where((m) => m.type == 'text')
       .map((m) => m.content)
       .toList();
   return ref.read(deepSeekDatasourceProvider).generateReplySuggestion(
     bookTitle: params.bookTitle,
     transactionType: params.transactionType,
     recentMessages: messageTexts,
+    isRequester: params.isRequester,
   );
 });

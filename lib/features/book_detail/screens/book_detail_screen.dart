@@ -1,18 +1,25 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../../../app/routes.dart';
 import '../../../app/theme/app_colors.dart';
 import '../../../app/theme/app_typography.dart';
 import '../../../app/theme/app_dimensions.dart';
 import '../../../core/utils/formatters.dart';
+import '../../../core/utils/auto_greeting_helper.dart';
 import '../../../data/models/book_model.dart';
 import '../../../data/models/user_model.dart';
 import '../../../data/models/wishlist_model.dart';
+import '../../../data/models/purchase_request_model.dart';
+import '../../../data/models/sharing_request_model.dart';
 import '../../../providers/book_providers.dart';
 import '../../../providers/user_providers.dart';
 import '../../../providers/auth_providers.dart';
 import '../../../providers/wishlist_providers.dart';
+import '../../../providers/purchase_providers.dart';
+import '../../../providers/sharing_providers.dart';
+import '../../../providers/chat_providers.dart';
 
 /// Provider to fetch the book owner's profile by UID.
 final _bookOwnerProvider = FutureProvider.family<UserModel?, String>(
@@ -159,6 +166,79 @@ class BookDetailScreen extends ConsumerWidget {
         ]),
       ),
     );
+  }
+
+  /// 구매 요청 → 즉시 채팅방 생성 → 이동
+  Future<void> _handlePurchaseRequest(BuildContext context, WidgetRef ref, BookModel book) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('구매 요청'),
+        content: Text('"${book.title}"\n${Formatters.formatPrice(book.price ?? 0)}원\n\n구매 요청을 보내고 채팅을 시작할까요?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('취소')),
+          ElevatedButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('요청하기')),
+        ],
+      ),
+    );
+    if (confirmed != true || !context.mounted) return;
+
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    final now = DateTime.now();
+    final request = PurchaseRequestModel(
+      id: '', buyerUid: user.uid, sellerUid: book.ownerUid,
+      bookId: book.id, bookTitle: book.title, price: book.price ?? 0,
+      status: 'pending', createdAt: now, updatedAt: now,
+    );
+    final requestId = await ref.read(purchaseRepositoryProvider).createPurchaseRequest(request);
+    final greeting = AutoGreetingHelper.getGreeting(transactionType: 'sale', bookTitle: book.title, price: book.price ?? 0);
+    final chatRoomId = await ref.read(chatRepositoryProvider).createTransactionChatRoom(
+      participants: [book.ownerUid, user.uid],
+      transactionType: 'sale', bookTitle: book.title, bookId: book.id,
+      senderUid: user.uid, autoGreetingMessage: greeting,
+    );
+    await ref.read(purchaseRepositoryProvider).updateChatRoomId(requestId, chatRoomId);
+    if (context.mounted) context.push(AppRoutes.chatRoomPath(chatRoomId));
+  }
+
+  /// 나눔 요청 → 즉시 채팅방 생성 → 이동
+  Future<void> _handleSharingRequest(BuildContext context, WidgetRef ref, BookModel book) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('나눔 요청'),
+        content: Text('"${book.title}"\n\n나눔 요청을 보내고 채팅을 시작할까요?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('취소')),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('요청하기'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !context.mounted) return;
+
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    final now = DateTime.now();
+    final request = SharingRequestModel(
+      id: '', requesterUid: user.uid, ownerUid: book.ownerUid,
+      bookId: book.id, bookTitle: book.title,
+      status: 'pending', createdAt: now, updatedAt: now,
+    );
+    await ref.read(sharingRepositoryProvider).createSharingRequest(request);
+    final greeting = AutoGreetingHelper.getGreeting(transactionType: 'sharing', bookTitle: book.title);
+    final chatRoomId = await ref.read(chatRepositoryProvider).createTransactionChatRoom(
+      participants: [book.ownerUid, user.uid],
+      transactionType: 'sharing', bookTitle: book.title, bookId: book.id,
+      senderUid: user.uid, autoGreetingMessage: greeting,
+    );
+    if (context.mounted) context.push(AppRoutes.chatRoomPath(chatRoomId));
   }
 
   @override
@@ -431,7 +511,7 @@ class BookDetailScreen extends ConsumerWidget {
                     child: book.listingType == 'sharing'
                         ? ElevatedButton(
                             style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
-                            onPressed: () => context.push('/sharing-request/${book.id}'),
+                            onPressed: () => _handleSharingRequest(context, ref, book),
                             child: const Text('나눔 요청하기'),
                           )
                         : book.listingType == 'donation'
@@ -451,14 +531,14 @@ class BookDetailScreen extends ConsumerWidget {
                                     const SizedBox(width: 8),
                                     Expanded(
                                       child: ElevatedButton(
-                                        onPressed: () => context.push('/purchase-request/${book.id}'),
+                                        onPressed: () => _handlePurchaseRequest(context, ref, book),
                                         child: const Text('구매 요청'),
                                       ),
                                     ),
                                   ])
                                 : book.listingType == 'sale'
                                     ? ElevatedButton(
-                                        onPressed: () => context.push('/purchase-request/${book.id}'),
+                                        onPressed: () => _handlePurchaseRequest(context, ref, book),
                                         child: const Text('구매 요청하기'),
                                       )
                                     : ElevatedButton(
