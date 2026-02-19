@@ -1,13 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:go_router/go_router.dart';
+import '../../../app/routes.dart';
 import '../../../app/theme/app_colors.dart';
 import '../../../app/theme/app_typography.dart';
 import '../../../app/theme/app_dimensions.dart';
 import '../../../core/utils/formatters.dart';
+import '../../../core/utils/auto_greeting_helper.dart';
 import '../../../data/models/sharing_request_model.dart';
 import '../../../providers/book_providers.dart';
 import '../../../providers/sharing_providers.dart';
+import '../../../providers/chat_providers.dart';
 
 class SharingRequestScreen extends ConsumerStatefulWidget {
   final String bookId;
@@ -42,9 +46,22 @@ class _SharingRequestScreenState extends ConsumerState<SharingRequestScreen> {
           updatedAt: now,
         );
         await ref.read(sharingRepositoryProvider).createSharingRequest(request);
+        // 즉시 채팅방 생성 → 요청자가 채팅 목록에서 바로 확인 가능
+        final greeting = AutoGreetingHelper.getGreeting(
+          transactionType: 'sharing',
+          bookTitle: book.title,
+        );
+        final chatRoomId = await ref.read(chatRepositoryProvider).createTransactionChatRoom(
+          participants: [book.ownerUid, user.uid],
+          transactionType: 'sharing',
+          bookTitle: book.title,
+          bookId: widget.bookId,
+          senderUid: user.uid,
+          autoGreetingMessage: greeting,
+        );
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('나눔 요청을 보냈어요!')));
-          Navigator.pop(context);
+          context.push(AppRoutes.chatRoomPath(chatRoomId));
         }
       }
     } catch (e) {

@@ -81,26 +81,29 @@ class IncomingPurchaseRequestsScreen extends ConsumerWidget {
                             if (user == null) return;
                             // 1. 수락 처리
                             await ref.read(purchaseRepositoryProvider).updateStatus(req.id, 'accepted');
-                            // 2. 채팅방 생성 + 자동 인사말
-                            final greeting = AutoGreetingHelper.getGreeting(
-                              transactionType: 'sale',
-                              bookTitle: req.bookTitle,
-                              price: req.price,
-                            );
-                            final chatRoomId = await ref.read(chatRepositoryProvider).createTransactionChatRoom(
-                              participants: [user.uid, req.buyerUid],
-                              transactionType: 'sale',
-                              bookTitle: req.bookTitle,
-                              bookId: req.bookId,
-                              senderUid: user.uid,
-                              autoGreetingMessage: greeting,
-                            );
-                            // 3. chatRoomId 저장
-                            await ref.read(purchaseRepositoryProvider).updateChatRoomId(req.id, chatRoomId);
                             ref.invalidate(incomingPurchaseRequestsProvider);
-                            // 4. 채팅방으로 이동
-                            if (context.mounted) {
-                              context.push(AppRoutes.chatRoomPath(chatRoomId));
+                            // 2. 기존 채팅방으로 이동 (요청 시 이미 생성됨)
+                            if (req.chatRoomId != null && context.mounted) {
+                              context.push(AppRoutes.chatRoomPath(req.chatRoomId!));
+                            } else if (user != null) {
+                              // 하위호환: 이전에 생성된 요청은 chatRoomId 없음 → 새로 생성
+                              final greeting = AutoGreetingHelper.getGreeting(
+                                transactionType: 'sale',
+                                bookTitle: req.bookTitle,
+                                price: req.price,
+                              );
+                              final chatRoomId = await ref.read(chatRepositoryProvider).createTransactionChatRoom(
+                                participants: [user.uid, req.buyerUid],
+                                transactionType: 'sale',
+                                bookTitle: req.bookTitle,
+                                bookId: req.bookId,
+                                senderUid: user.uid,
+                                autoGreetingMessage: greeting,
+                              );
+                              await ref.read(purchaseRepositoryProvider).updateChatRoomId(req.id, chatRoomId);
+                              if (context.mounted) {
+                                context.push(AppRoutes.chatRoomPath(chatRoomId));
+                              }
                             }
                           },
                           child: const Text('수락'),

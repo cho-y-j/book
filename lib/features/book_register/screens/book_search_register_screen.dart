@@ -7,41 +7,46 @@ import '../../../app/theme/app_typography.dart';
 import '../../../app/theme/app_dimensions.dart';
 import '../../../data/datasources/remote/book_api_datasource.dart';
 
-class BookSearchRegisterScreen extends ConsumerWidget {
+class BookSearchRegisterScreen extends ConsumerStatefulWidget {
   const BookSearchRegisterScreen({super.key});
+  @override
+  ConsumerState<BookSearchRegisterScreen> createState() => _BookSearchRegisterScreenState();
+}
 
-  Future<void> _handleBarcodeScan(BuildContext context) async {
+class _BookSearchRegisterScreenState extends ConsumerState<BookSearchRegisterScreen> {
+  bool _isLoading = false;
+  String? _loadingMessage;
+
+  Future<void> _handleBarcodeScan() async {
     final isbn = await context.push<String>(AppRoutes.barcodeScan);
     if (isbn == null || isbn.isEmpty) return;
-    if (!context.mounted) return;
+    if (!mounted) return;
 
-    // 로딩 다이얼로그
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (_) => const Center(child: CircularProgressIndicator()),
-    );
+    setState(() {
+      _isLoading = true;
+      _loadingMessage = 'ISBN $isbn 검색 중...';
+    });
 
     try {
       final datasource = BookApiDatasource();
       final bookData = await datasource.searchByIsbn(isbn);
 
-      if (!context.mounted) return;
-      Navigator.pop(context); // 로딩 닫기
+      if (!mounted) return;
+      setState(() => _isLoading = false);
 
       if (bookData != null) {
         context.push(AppRoutes.bookCondition, extra: bookData);
       } else {
-        _showNotFoundDialog(context, isbn);
+        _showNotFoundDialog(isbn);
       }
     } catch (e) {
-      if (!context.mounted) return;
-      Navigator.pop(context); // 로딩 닫기
-      _showNotFoundDialog(context, isbn, error: '$e');
+      if (!mounted) return;
+      setState(() => _isLoading = false);
+      _showNotFoundDialog(isbn, error: '$e');
     }
   }
 
-  void _showNotFoundDialog(BuildContext context, String isbn, {String? error}) {
+  void _showNotFoundDialog(String isbn, {String? error}) {
     showDialog(
       context: context,
       builder: (dCtx) => AlertDialog(
@@ -80,38 +85,103 @@ class BookSearchRegisterScreen extends ConsumerWidget {
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('책 등록')),
-      body: Padding(
-        padding: const EdgeInsets.all(AppDimensions.paddingLG),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-          Text('어떤 방법으로 등록할까요?', style: AppTypography.headlineSmall),
-          const SizedBox(height: 32),
-          _RegisterOptionCard(icon: Icons.qr_code_scanner, title: '바코드 스캔', description: 'ISBN 바코드를 스캔하여\n빠르게 등록', onTap: () => _handleBarcodeScan(context)),
-          const SizedBox(height: 16),
-          _RegisterOptionCard(icon: Icons.search, title: '책 제목 검색', description: '제목이나 저자로\n검색하여 등록', onTap: () => context.push(AppRoutes.bookTitleSearch)),
-          const SizedBox(height: 16),
-          _RegisterOptionCard(icon: Icons.edit_note, title: '직접 등록', description: 'DB에 없는 책을\n직접 정보 입력', onTap: () => context.push(AppRoutes.manualRegister)),
-        ]),
+      body: Stack(
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(AppDimensions.paddingLG),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+              Text('어떤 방법으로 등록할까요?', style: AppTypography.headlineSmall),
+              const SizedBox(height: 32),
+              _RegisterOptionCard(
+                icon: Icons.qr_code_scanner,
+                title: '바코드 스캔',
+                description: 'ISBN 바코드를 스캔하여\n빠르게 등록',
+                onTap: _isLoading ? null : _handleBarcodeScan,
+              ),
+              const SizedBox(height: 16),
+              _RegisterOptionCard(
+                icon: Icons.search,
+                title: '책 제목 검색',
+                description: '제목이나 저자로\n검색하여 등록',
+                onTap: _isLoading ? null : () => context.push(AppRoutes.bookTitleSearch),
+              ),
+              const SizedBox(height: 16),
+              _RegisterOptionCard(
+                icon: Icons.edit_note,
+                title: '직접 등록',
+                description: 'DB에 없는 책을\n직접 정보 입력',
+                onTap: _isLoading ? null : () => context.push(AppRoutes.manualRegister),
+              ),
+            ]),
+          ),
+          // 로딩 오버레이 (showDialog 대신 Stack 사용 → Navigator.pop 문제 제거)
+          if (_isLoading)
+            Container(
+              color: Colors.black54,
+              child: Center(
+                child: Card(
+                  margin: const EdgeInsets.all(32),
+                  child: Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Column(mainAxisSize: MainAxisSize.min, children: [
+                      const CircularProgressIndicator(),
+                      const SizedBox(height: 16),
+                      Text(_loadingMessage ?? '검색 중...', style: AppTypography.bodyMedium),
+                    ]),
+                  ),
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }
 }
 
 class _RegisterOptionCard extends StatelessWidget {
-  final IconData icon; final String title; final String description; final VoidCallback onTap;
-  const _RegisterOptionCard({required this.icon, required this.title, required this.description, required this.onTap});
+  final IconData icon;
+  final String title;
+  final String description;
+  final VoidCallback? onTap;
+  const _RegisterOptionCard({
+    required this.icon,
+    required this.title,
+    required this.description,
+    required this.onTap,
+  });
   @override
   Widget build(BuildContext context) {
-    return Card(child: InkWell(onTap: onTap, borderRadius: BorderRadius.circular(AppDimensions.radiusMD), child: Padding(
-      padding: const EdgeInsets.all(AppDimensions.paddingLG),
-      child: Row(children: [
-        Container(width: 56, height: 56, decoration: BoxDecoration(color: AppColors.primaryLight.withOpacity(0.2), borderRadius: BorderRadius.circular(AppDimensions.radiusMD)), child: Icon(icon, color: AppColors.primary, size: 28)),
-        const SizedBox(width: 16),
-        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(title, style: AppTypography.titleMedium), const SizedBox(height: 4), Text(description, style: AppTypography.bodySmall)])),
-        const Icon(Icons.chevron_right, color: AppColors.textSecondary),
-      ]),
-    )));
+    return Card(
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(AppDimensions.radiusMD),
+        child: Padding(
+          padding: const EdgeInsets.all(AppDimensions.paddingLG),
+          child: Row(children: [
+            Container(
+              width: 56, height: 56,
+              decoration: BoxDecoration(
+                color: AppColors.primaryLight.withOpacity(0.2),
+                borderRadius: BorderRadius.circular(AppDimensions.radiusMD),
+              ),
+              child: Icon(icon, color: AppColors.primary, size: 28),
+            ),
+            const SizedBox(width: 16),
+            Expanded(child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title, style: AppTypography.titleMedium),
+                const SizedBox(height: 4),
+                Text(description, style: AppTypography.bodySmall),
+              ],
+            )),
+            const Icon(Icons.chevron_right, color: AppColors.textSecondary),
+          ]),
+        ),
+      ),
+    );
   }
 }

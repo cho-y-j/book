@@ -79,8 +79,12 @@ class IncomingSharingRequestsScreen extends ConsumerWidget {
                             final user = ref.read(currentUserProvider);
                             // 1. 수락 처리
                             await ref.read(sharingRepositoryProvider).updateStatus(req.id, 'accepted');
-                            // 2. 채팅방 생성 + 자동 인사말
-                            if (user != null) {
+                            ref.invalidate(incomingSharingRequestsProvider);
+                            // 2. 기존 채팅방으로 이동 (요청 시 이미 생성됨)
+                            if (req.chatRoomId != null && context.mounted) {
+                              context.push(AppRoutes.chatRoomPath(req.chatRoomId!));
+                            } else if (user != null) {
+                              // 하위호환: 이전에 생성된 요청은 chatRoomId 없음 → 새로 생성
                               final greeting = AutoGreetingHelper.getGreeting(
                                 transactionType: 'sharing',
                                 bookTitle: req.bookTitle,
@@ -93,10 +97,7 @@ class IncomingSharingRequestsScreen extends ConsumerWidget {
                                 senderUid: user.uid,
                                 autoGreetingMessage: greeting,
                               );
-                              // 3. chatRoomId 저장
                               await ref.read(sharingRepositoryProvider).updateChatRoomId(req.id, chatRoomId);
-                              ref.invalidate(incomingSharingRequestsProvider);
-                              // 4. 채팅방으로 이동
                               if (context.mounted) {
                                 context.push(AppRoutes.chatRoomPath(chatRoomId));
                               }

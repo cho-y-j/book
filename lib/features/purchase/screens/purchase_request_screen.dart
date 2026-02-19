@@ -1,13 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:go_router/go_router.dart';
+import '../../../app/routes.dart';
 import '../../../app/theme/app_colors.dart';
 import '../../../app/theme/app_typography.dart';
 import '../../../app/theme/app_dimensions.dart';
 import '../../../core/utils/formatters.dart';
+import '../../../core/utils/auto_greeting_helper.dart';
 import '../../../data/models/purchase_request_model.dart';
 import '../../../providers/book_providers.dart';
 import '../../../providers/purchase_providers.dart';
+import '../../../providers/chat_providers.dart';
 
 class PurchaseRequestScreen extends ConsumerStatefulWidget {
   final String bookId;
@@ -42,10 +46,26 @@ class _PurchaseRequestScreenState extends ConsumerState<PurchaseRequestScreen> {
           createdAt: now,
           updatedAt: now,
         );
-        await ref.read(purchaseRepositoryProvider).createPurchaseRequest(request);
+        final requestId = await ref.read(purchaseRepositoryProvider).createPurchaseRequest(request);
+        // 즉시 채팅방 생성 → 구매자가 채팅 목록에서 바로 확인 가능
+        final greeting = AutoGreetingHelper.getGreeting(
+          transactionType: 'sale',
+          bookTitle: book.title,
+          price: book.price ?? 0,
+        );
+        final chatRoomId = await ref.read(chatRepositoryProvider).createTransactionChatRoom(
+          participants: [book.ownerUid, user.uid],
+          transactionType: 'sale',
+          bookTitle: book.title,
+          bookId: widget.bookId,
+          senderUid: user.uid,
+          autoGreetingMessage: greeting,
+        );
+        // 구매 요청에 chatRoomId 연결
+        await ref.read(purchaseRepositoryProvider).updateChatRoomId(requestId, chatRoomId);
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('구매 요청을 보냈어요!')));
-          Navigator.pop(context);
+          context.push(AppRoutes.chatRoomPath(chatRoomId));
         }
       }
     } catch (e) {
