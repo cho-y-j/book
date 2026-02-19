@@ -22,12 +22,20 @@ class ChatRepository {
   }
 
   Stream<List<ChatRoomModel>> watchChatRooms(String uid) {
+    // orderBy 제거 → 복합 인덱스 불필요, 로컬에서 정렬
     return _chatRoomsRef
         .where('participants', arrayContains: uid)
-        .orderBy('lastMessageAt', descending: true)
         .snapshots()
-        .map((snap) =>
-            snap.docs.map((d) => ChatRoomModel.fromFirestore(d)).toList());
+        .map((snap) {
+      final rooms =
+          snap.docs.map((d) => ChatRoomModel.fromFirestore(d)).toList();
+      rooms.sort((a, b) {
+        final aTime = a.lastMessageAt ?? a.createdAt;
+        final bTime = b.lastMessageAt ?? b.createdAt;
+        return bTime.compareTo(aTime); // 최신순
+      });
+      return rooms;
+    });
   }
 
   Stream<List<MessageModel>> watchMessages(String chatRoomId) {
